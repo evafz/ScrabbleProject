@@ -2,14 +2,11 @@
 // Also note that the modulse Ass7 and ImpParser have been merged to one module called Parser.
 
 // Insert your Parser.fs file here from Assignment 7. All modules must be internal.
-
 module internal Parser
-
     open StateMonad
-    open ScrabbleUtil // NEW. KEEP THIS LINE.
+    open ScrabbleUtil
     open Eval
-    open FParsecLight.TextParser     // Industrial parser-combinator library. Use for Scrabble Project.
-    
+    open FParsecLight.TextParser
     
     let pIntToChar  = pstring "not implemented"
     let pPointValue = pstring "not implemented"
@@ -34,7 +31,6 @@ module internal Parser
     let whitespaceChar = pstring "not implemented"
     let pletter        = pstring "not implemented"
     let palphanumeric  = pstring "not implemented"
-
     let spaces         = pstring "not implemented"
     let spaces1        = pstring "not implemented"
 
@@ -45,7 +41,6 @@ module internal Parser
     let parenthesise _ = failwith "not implemented"
 
     let pid = pstring "not implemented"
-
     
     let unop _  = failwith "not implemented"
     let binop _  = failwith "not implemented"
@@ -64,7 +59,7 @@ module internal Parser
     let ParParse = parenthesise TermParse
     do aref := choice [NParse; ParParse]
 
-    let AexpParse = TermParse 
+    let AexpParse = TermParse
 
     let CexpParse = pstring "not implemented"
 

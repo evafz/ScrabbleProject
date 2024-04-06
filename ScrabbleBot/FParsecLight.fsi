@@ -1,11 +1,8 @@
 ﻿module internal FParsecLight
-
     open FParsec
-
     type ParserResult<'a> = ParserResult<'a, unit>
 
     module TextParser =
-
         type Parser<'a> = Parser<'a, unit>
 
         val satisfy : (char -> bool) -> Parser<char>

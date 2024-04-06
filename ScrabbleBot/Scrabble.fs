@@ -2,13 +2,10 @@
 
 open ScrabbleUtil
 open ScrabbleUtil.ServerCommunication
-
 open System.IO
-
 open ScrabbleUtil.DebugPrint
 
 // The RegEx module is only used to parse human input. It is not used for the final product.
-
 module RegEx =
     open System.Text.RegularExpressions
 
@@ -30,7 +27,6 @@ module RegEx =
         Seq.toList
 
  module Print =
-
     let printHand pieces hand =
         hand |>
         MultiSet.fold (fun _ x i -> forcePrint (sprintf "%d -> (%A, %d)\n" x (Map.find x pieces) i)) ()
@@ -40,7 +36,6 @@ module State =
     // Currently, it only keeps track of your hand, your player numer, your board, and your dictionary,
     // but it could, potentially, keep track of other useful
     // information, such as number of players, player turn, etc.
-
     type state = {
         board         : Parser.board
         dict          : ScrabbleUtil.Dictionary.Dict
@@ -49,7 +44,6 @@ module State =
     }
 
     let mkState b d pn h = {board = b; dict = d;  playerNumber = pn; hand = h }
-
     let board st         = st.board
     let dict st          = st.dict
     let playerNumber st  = st.playerNumber
@@ -59,7 +53,6 @@ module Scrabble =
     open System.Threading
 
     let playGame cstream pieces (st : State.state) =
-
         let rec aux (st : State.state) =
             Print.printHand pieces (State.hand st)
 
@@ -90,11 +83,9 @@ module Scrabble =
             | RCM (CMGameOver _) -> ()
             | RCM a -> failwith (sprintf "not implmented: %A" a)
             | RGPE err -> printfn "Gameplay Error:\n%A" err; aux st
-
-
         aux st
 
-    let startGame 
+    let startGame
             (boardP : boardProg) 
             (dictf : bool -> Dictionary.Dict) 
             (numPlayers : uint32) 
@@ -119,4 +110,3 @@ module Scrabble =
         let handSet = List.fold (fun acc (x, k) -> MultiSet.add x k acc) MultiSet.empty hand
 
         fun () -> playGame cstream tiles (State.mkState board dict playerNumber handSet)
-        

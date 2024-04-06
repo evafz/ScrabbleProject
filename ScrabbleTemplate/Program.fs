@@ -1,6 +1,4 @@
-﻿// Learn more about F# at http://fsharp.org
-
-let time f =
+﻿let time f =
     let start = System.DateTime.Now
     let res = f ()
     let finish = System.DateTime.Now
@@ -13,7 +11,6 @@ let spawnMultiples name dict bot =
         function 
         | 0 -> []
         | x -> (sprintf "%s%d" name x, dict, bot)::aux (x - 1)
-   
     aux >> List.rev
 
 [<EntryPoint>]
@@ -25,18 +22,17 @@ let main argv =
     System.Console.Clear()
 
     let board        = ScrabbleUtil.StandardBoard.standardBoard ()
-//    let board      = ScrabbleUtil.InfiniteBoard.infiniteBoard ()
+    // let board        = ScrabbleUtil.InfiniteBoard.infiniteBoard ()
 
-//    let board      = ScrabbleUtil.RandomBoard.randomBoard ()
-//    let board      = ScrabbleUtil.RandomBoard.randomBoardSeed (Some 42)
-//    let board      = ScrabbleUtil.InfiniteRandomBoard.infiniteRandomBoard ()
-//    let board      = ScrabbleUtil.InfiniteRandomBoard.infiniteRandomBoardSeed (Some 42)
+    // let board        = ScrabbleUtil.RandomBoard.randomBoard ()
+    // let board        = ScrabbleUtil.RandomBoard.randomBoardSeed (Some 42)
+    // let board        = ScrabbleUtil.InfiniteRandomBoard.infiniteRandomBoard ()
+    // let board        = ScrabbleUtil.InfiniteRandomBoard.infiniteRandomBoardSeed (Some 42)
 
-//    let board      = ScrabbleUtil.HoleBoard.holeBoard ()
-//    let board      = ScrabbleUtil.InfiniteHoleBoard.infiniteHoleBoard ()
+    // let board        = ScrabbleUtil.HoleBoard.holeBoard ()
+    // let board        = ScrabbleUtil.InfiniteHoleBoard.infiniteHoleBoard ()
 
-    let words     = readLines "../../../Dictionaries/English.txt"
-
+    let words      = readLines "../../../Dictionaries/English.txt"
     let handSize   = 7u
     let timeout    = None
     let tiles      = ScrabbleUtil.English.tiles 1u
@@ -50,16 +46,13 @@ let main argv =
         
     // Uncomment this line to call your client
     // let players    = [("Your name here", YourClientName.Scrabble.startGame)]
-    let (dictionary, time) =
-        time (fun () -> ScrabbleUtil.Dictionary.mkDict words dictAPI)
+    let (dictionary, time) = time (fun () -> ScrabbleUtil.Dictionary.mkDict words dictAPI)
 
     let players = spawnMultiples "OxyphenButazone" dictionary Oxyphenbutazone.Scrabble.startGame 2
-
 
     do ScrabbleServer.Comm.startGame 
           board dictionary handSize timeout tiles seed port players
     
     ScrabbleUtil.DebugPrint.forcePrint ("Server has terminated. Press Enter to exit program.\n")
     System.Console.ReadLine () |> ignore
-
     0

@@ -1,7 +1,6 @@
 ﻿namespace YourClientName
 
 module Scrabble =
-
     open ScrabbleUtil
     open System.IO
 

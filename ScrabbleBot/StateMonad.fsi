@@ -1,9 +1,8 @@
 ﻿module internal StateMonad
-
     type SM<'a>
     type State
 
-    type Result<'a, 'b>  =
+    type Result<'a, 'b> =
         | Success of 'a
         | Failure of 'b
 

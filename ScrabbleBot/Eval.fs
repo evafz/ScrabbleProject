@@ -1,11 +1,9 @@
 ﻿// Insert your updated Eval.fs file here from Assignment 7. All modules must be internal.
-
 module internal Eval
-
     open StateMonad
 
-    let add a b = failwith "Not implemented"      
-    let div a b = failwith "Not implemented"      
+    let add a b = failwith "Not implemented"
+    let div a b = failwith "Not implemented"
 
     type aExp =
         | N of int
@@ -20,24 +18,21 @@ module internal Eval
         | CharToInt of cExp
 
     and cExp =
-       | C  of char  (* Character value *)
-       | CV of aExp  (* Character lookup at word index *)
+       | C  of char
+       | CV of aExp
        | ToUpper of cExp
        | ToLower of cExp
        | IntToChar of aExp
 
     type bExp =             
-       | TT                   (* true *)
-       | FF                   (* false *)
-
-       | AEq of aExp * aExp   (* numeric equality *)
-       | ALt of aExp * aExp   (* numeric less than *)
-
-       | Not of bExp          (* boolean not *)
-       | Conj of bExp * bExp  (* boolean conjunction *)
-
-       | IsVowel of cExp      (* check for vowel *)
-       | IsConsonant of cExp  (* check for constant *)
+       | TT
+       | FF
+       | AEq of aExp * aExp
+       | ALt of aExp * aExp
+       | Not of bExp
+       | Conj of bExp * bExp
+       | IsVowel of cExp
+       | IsConsonant of cExp
 
     let (.+.) a b = Add (a, b)
     let (.-.) a b = Sub (a, b)
@@ -47,35 +42,33 @@ module internal Eval
 
     let (~~) b = Not b
     let (.&&.) b1 b2 = Conj (b1, b2)
-    let (.||.) b1 b2 = ~~(~~b1 .&&. ~~b2)       (* boolean disjunction *)
-    let (.->.) b1 b2 = (~~b1) .||. b2           (* boolean implication *) 
+    let (.||.) b1 b2 = ~~(~~b1 .&&. ~~b2)
+    let (.->.) b1 b2 = (~~b1) .||. b2
        
-    let (.=.) a b = AEq (a, b)   
-    let (.<.) a b = ALt (a, b)   
+    let (.=.) a b = AEq (a, b)
+    let (.<.) a b = ALt (a, b)
     let (.<>.) a b = ~~(a .=. b)
     let (.<=.) a b = a .<. b .||. ~~(a .<>. b)
-    let (.>=.) a b = ~~(a .<. b)                (* numeric greater than or equal to *)
-    let (.>.) a b = ~~(a .=. b) .&&. (a .>=. b) (* numeric greater than *)    
+    let (.>=.) a b = ~~(a .<. b)
+    let (.>.) a b = ~~(a .=. b) .&&. (a .>=. b)
 
-    let arithEval a : SM<int> = failwith "Not implemented"      
+    let arithEval a : SM<int> = failwith "Not implemented"
 
-    let charEval c : SM<char> = failwith "Not implemented"      
+    let charEval c : SM<char> = failwith "Not implemented"
 
     let boolEval b : SM<bool> = failwith "Not implemented"
 
-
-    type stm =                (* statements *)
-    | Declare of string       (* variable declaration *)
-    | Ass of string * aExp    (* variable assignment *)
-    | Skip                    (* nop *)
-    | Seq of stm * stm        (* sequential composition *)
-    | ITE of bExp * stm * stm (* if-then-else statement *)
-    | While of bExp * stm     (* while statement *)
+    type stm =
+    | Declare of string
+    | Ass of string * aExp
+    | Skip
+    | Seq of stm * stm
+    | ITE of bExp * stm * stm
+    | While of bExp * stm
 
     let rec stmntEval stmnt : SM<unit> = failwith "Not implemented"
 
 (* Part 3 (Optional) *)
-
     type StateBuilder() =
 
         member this.Bind(f, x)    = f >>= x
@@ -98,7 +91,6 @@ module internal Eval
     type squareFun = word -> int -> int -> Result<int, Error>
 
     let stmntToSquareFun stm = failwith "Not implemented"
-
 
     type coord = int * int
 
