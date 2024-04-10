@@ -4,7 +4,8 @@
         | VarNotFound of string
         | IndexOutOfBounds of int
         | DivisionByZero 
-        | ReservedName of string           
+        | ReservedName of string   
+        | EmptyStack        
 
     type Result<'a, 'b> =
         | Success of 'a
@@ -86,4 +87,16 @@
             | Some v -> Success ((), {s with vars = v})
             | None -> Failure (VarNotFound x))
 
-    let declare (x : string) : SM<unit> = failwith "Not implemented"
+    let declare (x : string) : SM<unit> = 
+        S (fun s -> 
+        match s.vars  with
+            | [] -> Failure EmptyStack
+            | m :: ms-> 
+                match Map.tryFind x m with
+                    | Some _ -> Failure (VarExists x)
+                    | None -> 
+                        match Set.contains x s.reserved with 
+                            | true -> Failure (ReservedName x)
+                            | false -> Success ((), {s with vars = (Map.add x 0 m) :: ms})
+
+        )  

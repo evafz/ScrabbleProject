@@ -1,6 +1,10 @@
 ﻿module internal Eval
     open StateMonad
 
+    let hello = [('H', 4); ('E', 1); ('L', 1); ('L', 1); ('O', 1)]
+    let state = mkState [("x", 5); ("y", 42)] hello ["_pos_"; "_result_"]
+    let emptyState = mkState [] [] []
+
     let add a b = a >>= 
                             (fun x -> b >>= 
                                         (fun y -> ret (x+y)))      
