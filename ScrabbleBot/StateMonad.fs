@@ -1,5 +1,4 @@
-﻿// Insert your StateMonad.fs from Assignment 6 here. All modules must be internal.
-module internal StateMonad
+﻿module StateMonad
     type Error = 
         | VarExists of string
         | VarNotFound of string
@@ -11,19 +10,16 @@ module internal StateMonad
         | Success of 'a
         | Failure of 'b
 
-    type State = { 
-        vars     : Map<string, int> list
-        word     : (char * int) list 
-        reserved : Set<string>
-    }
+    type State = { vars     : Map<string, int> list
+                   word     : (char * int) list 
+                   reserved : Set<string> }
 
     type SM<'a> = S of (State -> Result<'a * State, Error>)
 
-    let mkState lst word reserved = {
-        vars = [Map.ofList lst];
-        word = word;
-        reserved = Set.ofList reserved 
-    }
+    let mkState lst word reserved =
+           { vars = [Map.ofList lst];
+             word = word;
+             reserved = Set.ofList reserved }
 
     let evalSM (s : State) (S a : SM<'a>) : Result<'a, Error> =
         match a s with
@@ -36,38 +32,58 @@ module internal StateMonad
             | Success (b, s') -> 
                 match f b with 
                 | S g -> g s'
-            | Failure err     -> Failure err)
+            | Failure err -> Failure err)
 
     let ret (v : 'a) : SM<'a> = S (fun s -> Success (v, s))
-    let fail err : SM<'a> = S (fun s -> Failure err)
+    let fail err : SM<'a> = S (fun _ -> Failure err)
 
-    let (>>=) x f = bind f x
+    let (>>=)  x f = bind f x
     let (>>>=) x f = x >>= (fun () -> f)
 
     let push : SM<unit> = S (fun s -> Success ((), {s with vars = Map.empty :: s.vars}))
+    let pop : SM<unit> = S (fun s -> 
+        match List.length s.vars with
+        | 0 -> Failure (IndexOutOfBounds 0) 
+        | _ -> Success ((), {s with vars = List.tail s.vars}))
 
-    let pop : SM<unit> = failwith "Not implemented"
+    let wordLength : SM<int> = S (fun s -> Success (List.length s.word, s))
 
-    let wordLength : SM<int> = failwith "Not implemented"
-
-    let characterValue (pos : int) : SM<char> = failwith "Not implemented"
-
-    let pointValue (pos : int) : SM<int> = failwith "Not implemented"
+    let characterValue (pos : int) : SM<char> = S (fun s ->
+        match List.tryItem pos s.word with
+        | Some v -> Success (fst v, s)
+        | None -> Failure (IndexOutOfBounds pos))
+    
+    let pointValue (pos : int) : SM<int> = S (fun s ->
+        match List.tryItem pos s.word with
+        | Some v -> Success (snd v, s)
+        | None -> Failure (IndexOutOfBounds pos))
 
     let lookup (x : string) : SM<int> =
         let rec aux =
             function
-            | []      -> None
+            | [] -> None
             | m :: ms -> 
                 match Map.tryFind x m with
                 | Some v -> Some v
-                | None   -> aux ms
+                | None -> aux ms
 
         S (fun s -> 
-              match aux (s.vars) with
-              | Some v -> Success (v, s)
-              | None   -> Failure (VarNotFound x))
+            match aux (s.vars) with
+            | Some v -> Success (v, s)
+            | None -> Failure (VarNotFound x))
 
-    let declare (var : string) : SM<unit> = failwith "Not implemented"
-    let update (var : string) (value : int) : SM<unit> = failwith "Not implemented"
- 
+    let update (x : string) (v : int) : SM<unit> =
+        let rec aux lst acc =
+            match lst with
+            | [] -> None
+            | m :: ms ->
+                match Map.tryFind x m with
+                | Some _ -> Some (acc @ (Map.add x v m) :: ms)
+                | None -> aux ms (m :: acc)
+
+        S (fun s ->
+            match aux s.vars List.empty with
+            | Some v -> Success ((), {s with vars = v})
+            | None -> Failure (VarNotFound x))
+
+    let declare (x : string) : SM<unit> = failwith "Not implemented"
