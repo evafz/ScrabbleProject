@@ -2,8 +2,22 @@
 module internal Eval
     open StateMonad
 
-    let add a b = failwith "Not implemented"
-    let div a b = failwith "Not implemented"
+    let add a b = a >>= 
+                            (fun x -> b >>= 
+                                        (fun y -> ret (x+y)))      
+
+    let div a b = a >>= 
+                        (fun x -> b >>= 
+                                    (fun y -> if y=0 
+                                                    then fail DivisionByZero 
+                                                    else ret (x/y)))  
+
+    let modul a b = a >>= 
+                        (fun x -> b >>= 
+                                    (fun y -> if y=0 
+                                                    then fail DivisionByZero 
+                                                    else ret (x%y)))    
+
 
     type aExp =
         | N of int
@@ -33,6 +47,8 @@ module internal Eval
        | Conj of bExp * bExp
        | IsVowel of cExp
        | IsConsonant of cExp
+       | IsLetter of cExp
+       | IsDigit of cExp
 
     let (.+.) a b = Add (a, b)
     let (.-.) a b = Sub (a, b)
@@ -52,11 +68,60 @@ module internal Eval
     let (.>=.) a b = ~~(a .<. b)
     let (.>.) a b = ~~(a .=. b) .&&. (a .>=. b)
 
-    let arithEval a : SM<int> = failwith "Not implemented"
+    let binop f a b =
+                a >>= fun x ->
+                b >>= fun y ->
+                ret (f x y)
 
-    let charEval c : SM<char> = failwith "Not implemented"
+    let monop f a = a >>= fun x -> ret (f x)
 
-    let boolEval b : SM<bool> = failwith "Not implemented"
+
+    let rec arithEval a : SM<int> = 
+        match a with
+            | N x -> ret x
+            | V x -> lookup x
+            | WL -> wordLength
+            | PV x -> arithEval x
+            | Add (x, y) -> binop ( + ) (arithEval x) (arithEval y)
+            | Sub (x, y) -> binop ( - ) (arithEval x) (arithEval y)
+            | Mul (x, y) -> binop ( * ) (arithEval x) (arithEval y)
+            | Div (x, y) -> div (arithEval x) (arithEval y)
+            | Mod (x, y) -> modul (arithEval x) (arithEval y)
+            | CharToInt x -> monop int (charEval x)
+    
+
+    and charEval c : SM<char> = 
+        match c with
+            | C x -> ret x
+            | CV x -> monop char (arithEval x)
+            | ToUpper x -> monop System.Char.ToUpper (charEval x)
+            | ToLower x -> monop System.Char.ToLower (charEval x)
+            | IntToChar x -> monop char (arithEval x)  
+
+    let vowels = ['a'; 'e'; 'i'; 'o'; 'u'; 'y'; 'A'; 'E'; 'I'; 'O'; 'U'; 'Y']
+    let isVowel a = match a with
+                        | a when List.contains a vowels -> true
+                        | _ -> false
+
+    //this just checks that it is not a vowel but could still be non-letter values
+    let isConsonant x = not (isVowel x)
+    let rec boolEval b : SM<bool> = 
+        match b with
+                | TT -> ret true
+                | FF -> ret false
+
+                | AEq (x, y) -> binop ( = ) (arithEval x) (arithEval y)
+                | ALt (x, y) -> binop ( < ) (arithEval x) (arithEval y)
+
+                | Not x -> monop not (boolEval x)
+                | Conj (x, y) -> binop ( && ) (boolEval x) (boolEval y)
+
+                | IsVowel x -> monop isVowel (charEval x)
+                | IsConsonant x -> monop isConsonant (charEval x)
+                | IsLetter x -> monop System.Char.IsLetter (charEval x)
+                | IsDigit x-> monop System.Char.IsDigit (charEval x)     (* check for digit *)
+
+
 
     type stm =
     | Declare of string
@@ -66,7 +131,9 @@ module internal Eval
     | ITE of bExp * stm * stm
     | While of bExp * stm
 
-    let rec stmntEval stmnt : SM<unit> = failwith "Not implemented"
+    //let rec stmntEval stmnt : SM<unit> = 
+      //  match stmnt with
+        //    |Declare s
 
 (* Part 3 (Optional) *)
     type StateBuilder() =
