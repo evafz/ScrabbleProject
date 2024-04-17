@@ -1,4 +1,4 @@
-﻿namespace YourClientName
+﻿namespace FuncPro
 
 module Scrabble =
     open ScrabbleUtil

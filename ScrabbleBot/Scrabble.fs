@@ -1,4 +1,4 @@
-﻿namespace YourClientName
+﻿namespace FuncPro
 
 open ScrabbleUtil
 open ScrabbleUtil.ServerCommunication
@@ -67,11 +67,24 @@ module Scrabble =
             let msg = recv cstream
             debugPrint (sprintf "Player %d <- Server:\n%A\n" (State.playerNumber st) move) // keep the debug lines. They are useful.
 
+
+
             match msg with
-            | RCM (CMPlaySuccess(ms, points, newPieces)) ->
+            | RCM (CMPlaySuccess(ms, points, newPieces)) ->                
                 (* Successful play by you. Update your state (remove old tiles, add the new ones, change turn, etc) *)
                 let st' = st // This state needs to be updated
-                aux st'
+
+                //update the hand
+                let multiMs = MultiSet.ofList (List.map (fun x -> (fst(snd x))) ms)
+                let lessHand = MultiSet.fold (fun acc elm _ -> MultiSet.removeSingle elm acc ) st'.hand multiMs
+                
+                let multiNewPieces = MultiSet.ofList (List.map (fun x -> fst x) newPieces)
+                let moreHand = MultiSet.fold (fun acc elm _ -> MultiSet.addSingle elm acc ) lessHand multiNewPieces
+
+                Print.printHand pieces (moreHand)
+
+                aux (State.mkState st'.board st'.dict st'.playerNumber moreHand)
+
             | RCM (CMPlayed (pid, ms, points)) ->
                 (* Successful play by other player. Update your state *)
                 let st' = st // This state needs to be updated
@@ -103,8 +116,7 @@ module Scrabble =
                       hand =  %A
                       timeout = %A\n\n" numPlayers playerNumber playerTurn hand timeout)
 
-        //let dict = dictf true // Uncomment if using a gaddag for your dictionary
-        let dict = dictf false // Uncomment if using a trie for your dictionary
+        let dict = dictf false
         let board = Parser.mkBoard boardP
                   
         let handSet = List.fold (fun acc (x, k) -> MultiSet.add x k acc) MultiSet.empty hand
