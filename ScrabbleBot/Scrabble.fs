@@ -38,7 +38,7 @@ module State =
     // information, such as number of players, player turn, etc.
     type state = {
         board         : Parser.board
-        dict          : ScrabbleUtil.Dictionary.Dict
+        dict          : Dictionary.Dict
         playerNumber  : uint32
         hand          : MultiSet.MultiSet<uint32>
     }
@@ -51,10 +51,49 @@ module State =
 
 module Scrabble =
     open System.Threading
+    //create trie method for finding a list of possible words given a start-string and the letters on my hand
+
+    //Check if board is empty - if yes find word from your hand only
+    //Else:
+    //Find word on board by starting in center and going left or up until you find start of word (blank square)
+    // Now go right or down until you find end of word (blank square), remember the letters as you go!
+    //combine letters into word/string
+    //check if that word as start-string + letters on hand are possible (method )
+        //check if there is space for chosen word on board / no overlapping / no sidewords
+        //if not find new word (rec?)
+    //If not find new word (rec?)
+
+    let findPossibleWords (st : State.state) (hand : MultiSet.MultiSet<uint32>) =
+        failwith "not implemented"
+        //let words = st.board.squares st.board.center
+        
+    let rec removeItem item cs =
+        match cs with
+        | c::cs when c = item -> cs
+        | c::cs -> cs @ [c]
+        | _ -> []
+
+    let getWords cs dict =
+        let rec aux (s : string) cs dict =
+            List.fold (fun acc elm -> 
+                match Dictionary.step elm dict with
+                    | None -> []
+                    | Some (b, newDict) ->
+                        let newS = s + string elm
+                        let newCs = removeItem elm cs
+                        match b with
+                        | false -> acc @ aux newS newCs newDict
+                        | true -> acc @ [newS] @ aux newS newCs newDict
+            ) [] cs
+        aux "" cs dict
 
     let playGame cstream pieces (st : State.state) =
         let rec aux (st : State.state) =
             Print.printHand pieces (State.hand st)
+
+            let result = getWords ['a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'g'] (State.dict st)
+            for s in result do
+                forcePrint s
 
             // remove the force print when you move on from manual input (or when you have learnt the format)
             forcePrint "Input move (format '(<x-coordinate> <y-coordinate> <piece id><character><point-value> )*', note the absence of space between the last inputs)\n\n"
@@ -67,7 +106,7 @@ module Scrabble =
             let msg = recv cstream
             debugPrint (sprintf "Player %d <- Server:\n%A\n" (State.playerNumber st) move) // keep the debug lines. They are useful.
 
-
+            
 
             match msg with
             | RCM (CMPlaySuccess(ms, points, newPieces)) ->                

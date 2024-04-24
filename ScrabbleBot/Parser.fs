@@ -96,6 +96,7 @@ module internal Parser
 
     (* The rest of your parser goes here *)
     type word   = (char * int) list
+    //word + acc + pos gives total point value for word
     type squareFun = word -> int -> int -> Result<int, Error>
     type square = Map<int, squareFun>
     
