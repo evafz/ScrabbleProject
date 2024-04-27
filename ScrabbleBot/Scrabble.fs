@@ -30,22 +30,22 @@ module RegEx =
         hand |>
         MultiSet.fold (fun _ x i -> forcePrint (sprintf "%d -> (%A, %d)\n" x (Map.find x pieces) i)) ()
 
-module State = 
-    // Make sure to keep your state localised in this module. It makes your life a whole lot easier.
-    // Currently, it only keeps track of your hand, your player numer, your board, and your dictionary,
-    // but it could, potentially, keep track of other useful
-    // information, such as number of players, player turn, etc.
+module State =
     type state = {
         board         : Parser.board
         dict          : Dictionary.Dict
+        numPlayers    : uint32
         playerNumber  : uint32
+        playerTurn    : uint32
         hand          : MultiSet.MultiSet<uint32>
     }
 
-    let mkState b d pn h = {board = b; dict = d;  playerNumber = pn; hand = h }
+    let mkState b d np pn pt h = {board = b; dict = d; numPlayers = np; playerNumber = pn; playerTurn = pt; hand = h }
     let board st         = st.board
     let dict st          = st.dict
+    let numPlayers st    = st.numPlayers
     let playerNumber st  = st.playerNumber
+    let playerTurn st    = st.playerTurn
     let hand st          = st.hand
 
 module Scrabble =
@@ -96,39 +96,50 @@ module Scrabble =
                 printf "%s \n" s
             *)
             
-            // remove the force print when you move on from manual input (or when you have learnt the format)
-            forcePrint "Input move (format '(<x-coordinate> <y-coordinate> <piece id><character><point-value> )*', note the absence of space between the last inputs)\n\n"
             let input =  System.Console.ReadLine()
             let move = RegEx.parseMove input
 
-            debugPrint (sprintf "Player %d -> Server:\n%A\n" (State.playerNumber st) move) // keep the debug lines. They are useful.
+            debugPrint (sprintf "Player %d -> Server:\n%A\n" (State.playerNumber st) move)
             send cstream (SMPlay move)
 
             let msg = recv cstream
-            debugPrint (sprintf "Player %d <- Server:\n%A\n" (State.playerNumber st) move) // keep the debug lines. They are useful.
+            debugPrint (sprintf "Player %d <- Server:\n%A\n" (State.playerNumber st) move)
 
             match msg with
-            | RCM (CMPlaySuccess(ms, points, newPieces)) ->                
-                (* Successful play by you. Update your state (remove old tiles, add the new ones, change turn, etc) *)
-                let st' = st // This state needs to be updated
+            | RCM (CMPlaySuccess(ms, points, newPieces)) ->
+                let st' = st
 
-                //update the hand
+                // Update the hand
                 let multiMs = MultiSet.ofList (List.map (fun x -> (fst(snd x))) ms)
                 let lessHand = MultiSet.fold (fun acc elm _ -> MultiSet.removeSingle elm acc ) st'.hand multiMs
                 
                 let multiNewPieces = MultiSet.ofList (List.map (fun x -> fst x) newPieces)
                 let moreHand = MultiSet.fold (fun acc elm _ -> MultiSet.addSingle elm acc ) lessHand multiNewPieces
 
-                Print.printHand pieces (moreHand)
+                // Update player turn
 
-                aux (State.mkState st'.board st'.dict st'.playerNumber moreHand)
+                // Update board
+
+                // Update points?
+
+                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber st'.playerTurn moreHand)
             | RCM (CMPlayed (pid, ms, points)) ->
-                (* Successful play by other player. Update your state *)
-                let st' = st // This state needs to be updated
+                let st' = st
+
+                // Update player turn
+
+                // Update board
+
+                // Update points?
+
                 aux st'
             | RCM (CMPlayFailed (pid, ms)) ->
-                (* Failed play. Update your state *)
-                let st' = st // This state needs to be updated
+                let st' = st
+
+                // Update player turn
+
+                // Maybe more should be updated
+
                 aux st'
             | RCM (CMGameOver _) -> ()
             | RCM a -> failwith (sprintf "not implmented: %A" a)
@@ -158,4 +169,4 @@ module Scrabble =
                   
         let handSet = List.fold (fun acc (x, k) -> MultiSet.add x k acc) MultiSet.empty hand
 
-        fun () -> playGame cstream tiles (State.mkState board dict playerNumber handSet)
+        fun () -> playGame cstream tiles (State.mkState board dict numPlayers playerNumber playerTurn handSet)
