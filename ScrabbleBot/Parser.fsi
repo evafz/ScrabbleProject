@@ -16,3 +16,5 @@
     }
 
     val mkBoard : boardProg -> board
+
+    val mkBoardFun : boardProg -> (coord -> bool)

@@ -32,7 +32,8 @@ module RegEx =
 
 module State =
     type state = {
-        board         : Parser.board
+        //board         : Parser.board
+        boardFun      : coord -> bool
         dict          : Dictionary.Dict
         numPlayers    : uint32
         playerNumber  : uint32
@@ -41,8 +42,10 @@ module State =
         playedLetters : List<coord * (uint32 * (char * int))>
     }
 
-    let mkState b d np pn pt h pl = {board = b; dict = d; numPlayers = np; playerNumber = pn; playerTurn = pt; hand = h; playedLetters = pl}
-    let board st         = st.board
+    //let mkState b d np pn pt h pl = {board = b; dict = d; numPlayers = np; playerNumber = pn; playerTurn = pt; hand = h; playedLetters = pl}
+    //let board st         = st.board
+    let mkState b d np pn pt h pl = {boardFun = b; dict = d; numPlayers = np; playerNumber = pn; playerTurn = pt; hand = h; playedLetters = pl}
+    let boardFun st = st.boardFun
     let dict st          = st.dict
     let numPlayers st    = st.numPlayers
     let playerNumber st  = st.playerNumber
@@ -110,7 +113,7 @@ module Scrabble =
         if st.playedLetters.IsEmpty then
             possibleWords = getWords handList st.dict
         else
-            let startPos = findStartPos st st.board.center
+            let startPos = (0 , 0) // should maybe change???
             let startWord = findStartWord st.playedLetters startPos
             
             //this does not put the startwords strictly in front of the rest, needs more work
@@ -160,7 +163,7 @@ module Scrabble =
 
                 // Maybe more should be updated?
 
-                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn moreHand newPlayedLetters)
+                aux (State.mkState st'.boardFun st'.dict st'.numPlayers st'.playerNumber newPlayerTurn moreHand newPlayedLetters)
             | RCM (CMPlayed (pid, ms, points)) ->
                 let st' = st
 
@@ -177,7 +180,7 @@ module Scrabble =
 
                 // Maybe more should be updated?
 
-                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand newPlayedLetters)
+                aux (State.mkState st'.boardFun st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand newPlayedLetters)
             | RCM (CMPlayFailed (pid, ms)) ->
                 let st' = st
 
@@ -189,7 +192,7 @@ module Scrabble =
 
                 // Maybe more should be updated?
 
-                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand st'.playedLetters)
+                aux (State.mkState st'.boardFun st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand st'.playedLetters)
             | RCM (CMGameOver _) -> ()
             | RCM a -> failwith (sprintf "not implmented: %A" a)
             | RGPE err -> printfn "Gameplay Error:\n%A" err; aux st
@@ -214,9 +217,11 @@ module Scrabble =
                       timeout = %A\n\n" numPlayers playerNumber playerTurn hand timeout)
 
         let dict = dictf false
-        let board = Parser.mkBoard boardP
+        //let board = Parser.mkBoard boardP
+        let boardFun = Parser.mkBoardFun boardP
                   
         let handSet = List.fold (fun acc (x, k) -> MultiSet.add x k acc) MultiSet.empty hand
         let playedLetters = List.Empty
 
-        fun () -> playGame cstream tiles (State.mkState board dict numPlayers playerNumber playerTurn handSet playedLetters)
+        //fun () -> playGame cstream tiles (State.mkState board dict numPlayers playerNumber playerTurn handSet playedLetters)
+        fun () -> playGame cstream tiles (State.mkState boardFun dict numPlayers playerNumber playerTurn handSet playedLetters)
