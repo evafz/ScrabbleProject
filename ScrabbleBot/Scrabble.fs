@@ -146,6 +146,10 @@ module Scrabble =
                 let moreHand = MultiSet.fold (fun acc elm _ -> MultiSet.addSingle elm acc ) lessHand multiNewPieces
 
                 // Update player turn
+                let newPlayerTurn =
+                    match st'.playerTurn with
+                    | x when x = st'.numPlayers -> 1u
+                    | x -> x + 1u
 
                 // Update board
 
@@ -153,11 +157,15 @@ module Scrabble =
 
                 // Maybe more should be updated?
 
-                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber st'.playerTurn moreHand)
+                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn moreHand)
             | RCM (CMPlayed (pid, ms, points)) ->
                 let st' = st
 
                 // Update player turn
+                let newPlayerTurn =
+                    match st'.playerTurn with
+                    | x when x = st'.numPlayers -> 1u
+                    | x -> x + 1u
 
                 // Update board
 
@@ -170,6 +178,10 @@ module Scrabble =
                 let st' = st
 
                 // Update player turn
+                let newPlayerTurn =
+                    match st'.playerTurn with
+                    | x when x = st'.numPlayers -> 1u
+                    | x -> x + 1u
 
                 // Maybe more should be updated?
 
