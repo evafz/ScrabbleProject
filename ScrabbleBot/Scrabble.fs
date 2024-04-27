@@ -5,7 +5,6 @@ open ScrabbleUtil.ServerCommunication
 open System.IO
 open ScrabbleUtil.DebugPrint
 
-// The RegEx module is only used to parse human input. It is not used for the final product.
 module RegEx =
     open System.Text.RegularExpressions
 
@@ -108,8 +107,6 @@ module Scrabble =
             let msg = recv cstream
             debugPrint (sprintf "Player %d <- Server:\n%A\n" (State.playerNumber st) move) // keep the debug lines. They are useful.
 
-            
-
             match msg with
             | RCM (CMPlaySuccess(ms, points, newPieces)) ->                
                 (* Successful play by you. Update your state (remove old tiles, add the new ones, change turn, etc) *)
@@ -125,7 +122,6 @@ module Scrabble =
                 Print.printHand pieces (moreHand)
 
                 aux (State.mkState st'.board st'.dict st'.playerNumber moreHand)
-
             | RCM (CMPlayed (pid, ms, points)) ->
                 (* Successful play by other player. Update your state *)
                 let st' = st // This state needs to be updated
