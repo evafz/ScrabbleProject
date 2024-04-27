@@ -67,38 +67,36 @@ module Scrabble =
         failwith "not implemented"
         //let words = st.board.squares st.board.center
         
-    let rec removeItem item cs =
-        match cs with
-        | c::cs when c = item -> cs
-        | c::cs -> c::removeItem item cs
+    let rec removeItem itm lst =
+        match lst with
+        | x::lst when x = itm -> lst
+        | x::lst -> x::removeItem itm lst
         | _ -> []
 
-    let getWords cs dict =
-        let rec aux (s : string) cs dict =
+    let getWords lst dict =
+        let rec aux s lst dict =
             List.fold (fun acc elm -> 
                 match Dictionary.step elm dict with
-                    | None -> Set.empty
+                    | None -> acc
                     | Some (b, newDict) ->
                         let newS = s + string elm
-                        let newCs = removeItem elm cs
-                        printf "%s %b \n" newS b
+                        let newLst = removeItem elm lst
                         match b with
-                        | false -> acc |> Set.union (aux newS newCs newDict)
-                        | true -> acc |> Set.union (aux newS newCs newDict) |> Set.add newS
-            ) Set.empty cs
-        aux "" cs dict
+                            | false -> acc |> Set.union (aux newS newLst newDict)
+                            | true -> acc |> Set.union (aux newS newLst newDict) |> Set.add newS
+            ) Set.empty lst
+        aux "" lst dict
 
     let playGame cstream pieces (st : State.state) =
         let rec aux (st : State.state) =
-            //Print.printHand pieces (State.hand st)
-
-            let result = getWords ['T'; 'O'; 'P'] (State.dict st)
-            printf "\n"
-
-            for s in result do
-                printf "%s \n" s
+            Print.printHand pieces (State.hand st)
 
             (*
+            let result = getWords ['A'; 'B'; 'C'; 'D'; 'E'; 'F'; 'G'] (State.dict st)
+            for s in result do
+                printf "%s \n" s
+            *)
+            
             // remove the force print when you move on from manual input (or when you have learnt the format)
             forcePrint "Input move (format '(<x-coordinate> <y-coordinate> <piece id><character><point-value> )*', note the absence of space between the last inputs)\n\n"
             let input =  System.Console.ReadLine()
@@ -139,7 +137,6 @@ module Scrabble =
             | RCM (CMGameOver _) -> ()
             | RCM a -> failwith (sprintf "not implmented: %A" a)
             | RGPE err -> printfn "Gameplay Error:\n%A" err; aux st
-            *)
         aux st
 
     let startGame
