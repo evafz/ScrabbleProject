@@ -73,7 +73,7 @@ module Scrabble =
     //BUT WORD IS TYPE INT FOR SOME REASON, CANNOT FIND THE WORD OR ACCUMULATE CHARS YET
     let rec findStartWord (st : State.state) (coords : coord) (startWord) = 
         match (st.board.squares (fst coords + 1, snd coords)) with
-            |StateMonad.Success (Some squareMap) ->
+            | StateMonad.Success (Some squareMap) ->
                 match Map.tryFind (fst coords + 1) squareMap with
                     | Some squareFun ->
                         match squareFun [] 0 0 with
@@ -151,6 +151,8 @@ module Scrabble =
 
                 // Update points?
 
+                // Maybe more should be updated?
+
                 aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber st'.playerTurn moreHand)
             | RCM (CMPlayed (pid, ms, points)) ->
                 let st' = st
@@ -161,13 +163,15 @@ module Scrabble =
 
                 // Update points?
 
+                // Maybe more should be updated?
+
                 aux st'
             | RCM (CMPlayFailed (pid, ms)) ->
                 let st' = st
 
                 // Update player turn
 
-                // Maybe more should be updated
+                // Maybe more should be updated?
 
                 aux st'
             | RCM (CMGameOver _) -> ()
