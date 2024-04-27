@@ -55,17 +55,6 @@ module State =
 
 module Scrabble =
     open System.Threading
-    //create trie method for finding a list of possible words given a start-string and the letters on my hand
-
-    //Check if board is empty - if yes find word from your hand only
-    //Else:
-    //Find word on board by starting in center and going left or up until you find start of word (blank square)
-    // Now go right or down until you find end of word (blank square), remember the letters as you go!
-    //combine letters into word/string
-    //check if that word as start-string + letters on hand are possible (method )
-        //check if there is space for chosen word on board / no overlapping / no sidewords
-        //if not find new word (rec?)
-    //If not find new word (rec?)
 
     //method for finding the start of a word (first blank square)
     let coordIsOccupied (playedLetters : List<coord * (uint32 * (char * int))>) (coord : coord) = 
@@ -108,16 +97,20 @@ module Scrabble =
         aux "" lst dict
 
     let findPossibleWords (st : State.state) (hand : MultiSet.MultiSet<uint32>) =
-        let handList = MultiSet.toList hand
+        //converts multiset<uint32> to list<char>
+        let handList = List.map (fun i -> char (uint i + 96u)) (MultiSet.toList hand)
+
         let possibleWords = Set.empty
         if st.playedLetters.IsEmpty then
             possibleWords = getWords handList st.dict
         else
-            let startPos = (0 , 0) // should maybe change???
+            let startPos = findStartPos st (0,0) //or other square where we know something is placed, could be from playedLetters list?
             let startWord = findStartWord st.playedLetters startPos
-            
+
             //this does not put the startwords strictly in front of the rest, needs more work
             possibleWords = getWords (List.append startWord handList) st.dict
+
+            //still needs to check if chosen word is possible on the board (no overlapping, no sidewords, no nothing)
 
 
     let playGame cstream pieces (st : State.state) =
