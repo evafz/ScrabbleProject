@@ -38,15 +38,17 @@ module State =
         playerNumber  : uint32
         playerTurn    : uint32
         hand          : MultiSet.MultiSet<uint32>
+        playedLetters : List<coord * (uint32 * (char * int))>
     }
 
-    let mkState b d np pn pt h = {board = b; dict = d; numPlayers = np; playerNumber = pn; playerTurn = pt; hand = h }
+    let mkState b d np pn pt h pl = {board = b; dict = d; numPlayers = np; playerNumber = pn; playerTurn = pt; hand = h; playedLetters = pl}
     let board st         = st.board
     let dict st          = st.dict
     let numPlayers st    = st.numPlayers
     let playerNumber st  = st.playerNumber
     let playerTurn st    = st.playerTurn
     let hand st          = st.hand
+    let playedLetters st = st.playedLetters
 
 module Scrabble =
     open System.Threading
@@ -63,11 +65,15 @@ module Scrabble =
     //If not find new word (rec?)
 
     //method for finding the start of a word (first blank square)
+    let coordIsOccupied (playedLetters : List<coord * (uint32 * (char * int))>) (coord : coord) = 
+        List.exists (fun (c, _) -> c = coord) playedLetters
+
     let rec findStartPos (st : State.state) (currentCoords : coord) = 
-        match (st.board.squares currentCoords) with 
-            | StateMonad.Success (Some _) -> findStartPos st (((fst currentCoords) - 1), (snd currentCoords))
-            | StateMonad.Success None -> currentCoords
-            | StateMonad.Failure err -> (0, 0)
+        match coordIsOccupied st.playedLetters currentCoords with 
+            | true -> findStartPos st (fst currentCoords + 1, snd currentCoords)
+            | false -> currentCoords
+
+    
 
     //method for finding the word that should start the word to be placed (assuming youve found the first blank square)
     //BUT WORD IS TYPE INT FOR SOME REASON, CANNOT FIND THE WORD OR ACCUMULATE CHARS YET
@@ -151,13 +157,14 @@ module Scrabble =
                     | x when x = st'.numPlayers -> 1u
                     | x -> x + 1u
 
-                // Update board
+                // Update board / playedLetters
+                let newPlayedLetters = List.append st'.playedLetters ms
 
                 // Update points?
 
                 // Maybe more should be updated?
 
-                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn moreHand)
+                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn moreHand newPlayedLetters)
             | RCM (CMPlayed (pid, ms, points)) ->
                 let st' = st
 
@@ -167,13 +174,14 @@ module Scrabble =
                     | x when x = st'.numPlayers -> 1u
                     | x -> x + 1u
 
-                // Update board
+                // Update board / playedLetters
+                let newPlayedLetters = List.append st'.playedLetters ms
 
                 // Update points?
 
                 // Maybe more should be updated?
 
-                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand)
+                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand newPlayedLetters)
             | RCM (CMPlayFailed (pid, ms)) ->
                 let st' = st
 
@@ -185,7 +193,7 @@ module Scrabble =
 
                 // Maybe more should be updated?
 
-                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand)
+                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand st'.playedLetters)
             | RCM (CMGameOver _) -> ()
             | RCM a -> failwith (sprintf "not implmented: %A" a)
             | RGPE err -> printfn "Gameplay Error:\n%A" err; aux st
@@ -213,5 +221,6 @@ module Scrabble =
         let board = Parser.mkBoard boardP
                   
         let handSet = List.fold (fun acc (x, k) -> MultiSet.add x k acc) MultiSet.empty hand
+        let playedLetters = List.Empty
 
-        fun () -> playGame cstream tiles (State.mkState board dict numPlayers playerNumber playerTurn handSet)
+        fun () -> playGame cstream tiles (State.mkState board dict numPlayers playerNumber playerTurn handSet playedLetters)
