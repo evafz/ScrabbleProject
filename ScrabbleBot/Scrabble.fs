@@ -73,34 +73,17 @@ module Scrabble =
             | true -> findStartPos st (fst currentCoords + 1, snd currentCoords)
             | false -> currentCoords
 
+    //find startWord:
+    let rec findStartWord (playedLetters : List<coord * (uint32 * (char * int))>) (startPos : coord) =
+        match playedLetters with
+            |[] -> []
+            | ((x,y), (_, (letter, _))) :: rest -> 
+                if (x, y) = startPos then
+                    letter :: findStartWord rest (x + 1, y)
+                else
+                    findStartWord rest startPos
+
     
-
-    //method for finding the word that should start the word to be placed (assuming youve found the first blank square)
-    //BUT WORD IS TYPE INT FOR SOME REASON, CANNOT FIND THE WORD OR ACCUMULATE CHARS YET
-    let rec findStartWord (st : State.state) (coords : coord) (startWord) = 
-        match (st.board.squares (fst coords + 1, snd coords)) with
-            | StateMonad.Success (Some squareMap) ->
-                match Map.tryFind (fst coords + 1) squareMap with
-                    | Some squareFun ->
-                        match squareFun [] 0 0 with
-                            | StateMonad.Success word -> word
-                            | StateMonad.Failure err -> startWord 
-                    | None -> startWord
-            | StateMonad.Success None -> startWord
-            | StateMonad.Failure err -> startWord
-
-    // let findPossibleWords (st : State.state) (hand : MultiSet.MultiSet<uint32>) =
-    //     let result = List.Empty
-    //     let handList = MultiSet.toList hand
-    //     if (st.board.defaultSquare.IsEmpty) then
-    //         result = getWords handList st.dict
-    //     else 
-    //         let startCoords = findStartPos st st.board.center
-    //         let startWord = findStartWord st startCoords List.Empty
-    //         result = getWords 
-
-    //     return result
-        
     let rec removeItem itm lst =
         match lst with
         | x::lst when x = itm -> lst
@@ -120,6 +103,19 @@ module Scrabble =
                             | true -> acc |> Set.union (aux newS newLst newDict) |> Set.add newS
             ) Set.empty lst
         aux "" lst dict
+
+    let findPossibleWords (st : State.state) (hand : MultiSet.MultiSet<uint32>) =
+        let handList = MultiSet.toList hand
+        let possibleWords = Set.empty
+        if st.playedLetters.IsEmpty then
+            possibleWords = getWords handList st.dict
+        else
+            let startPos = findStartPos st st.board.center
+            let startWord = findStartWord st.playedLetters startPos
+            
+            //this does not put the startwords strictly in front of the rest, needs more work
+            possibleWords = getWords (List.append startWord handList) st.dict
+
 
     let playGame cstream pieces (st : State.state) =
         let rec aux (st : State.state) =
