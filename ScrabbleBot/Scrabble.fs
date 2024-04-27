@@ -62,9 +62,38 @@ module Scrabble =
         //if not find new word (rec?)
     //If not find new word (rec?)
 
-    let findPossibleWords (st : State.state) (hand : MultiSet.MultiSet<uint32>) =
-        failwith "not implemented"
-        //let words = st.board.squares st.board.center
+    //method for finding the start of a word (first blank square)
+    let rec findStartPos (st : State.state) (currentCoords : coord) = 
+        match (st.board.squares currentCoords) with 
+            | StateMonad.Success (Some _) -> findStartPos st (((fst currentCoords) - 1), (snd currentCoords))
+            | StateMonad.Success None -> currentCoords
+            | StateMonad.Failure err -> (0, 0)
+
+    //method for finding the word that should start the word to be placed (assuming youve found the first blank square)
+    //BUT WORD IS TYPE INT FOR SOME REASON, CANNOT FIND THE WORD OR ACCUMULATE CHARS YET
+    let rec findStartWord (st : State.state) (coords : coord) (startWord) = 
+        match (st.board.squares (fst coords + 1, snd coords)) with
+            |StateMonad.Success (Some squareMap) ->
+                match Map.tryFind (fst coords + 1) squareMap with
+                    | Some squareFun ->
+                        match squareFun [] 0 0 with
+                            | StateMonad.Success word -> word
+                            | StateMonad.Failure err -> startWord 
+                    | None -> startWord
+            | StateMonad.Success None -> startWord
+            | StateMonad.Failure err -> startWord
+
+    // let findPossibleWords (st : State.state) (hand : MultiSet.MultiSet<uint32>) =
+    //     let result = List.Empty
+    //     let handList = MultiSet.toList hand
+    //     if (st.board.defaultSquare.IsEmpty) then
+    //         result = getWords handList st.dict
+    //     else 
+    //         let startCoords = findStartPos st st.board.center
+    //         let startWord = findStartWord st startCoords List.Empty
+    //         result = getWords 
+
+    //     return result
         
     let rec removeItem itm lst =
         match lst with
