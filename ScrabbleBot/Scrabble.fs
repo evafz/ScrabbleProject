@@ -173,7 +173,7 @@ module Scrabble =
 
                 // Maybe more should be updated?
 
-                aux st'
+                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand)
             | RCM (CMPlayFailed (pid, ms)) ->
                 let st' = st
 
@@ -185,7 +185,7 @@ module Scrabble =
 
                 // Maybe more should be updated?
 
-                aux st'
+                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand)
             | RCM (CMGameOver _) -> ()
             | RCM a -> failwith (sprintf "not implmented: %A" a)
             | RGPE err -> printfn "Gameplay Error:\n%A" err; aux st
