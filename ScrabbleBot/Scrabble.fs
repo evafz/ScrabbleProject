@@ -70,31 +70,35 @@ module Scrabble =
     let rec removeItem item cs =
         match cs with
         | c::cs when c = item -> cs
-        | c::cs -> cs @ [c]
+        | c::cs -> c::removeItem item cs
         | _ -> []
 
     let getWords cs dict =
         let rec aux (s : string) cs dict =
             List.fold (fun acc elm -> 
                 match Dictionary.step elm dict with
-                    | None -> []
+                    | None -> Set.empty
                     | Some (b, newDict) ->
                         let newS = s + string elm
                         let newCs = removeItem elm cs
+                        printf "%s %b \n" newS b
                         match b with
-                        | false -> acc @ aux newS newCs newDict
-                        | true -> acc @ [newS] @ aux newS newCs newDict
-            ) [] cs
+                        | false -> acc |> Set.union (aux newS newCs newDict)
+                        | true -> acc |> Set.union (aux newS newCs newDict) |> Set.add newS
+            ) Set.empty cs
         aux "" cs dict
 
     let playGame cstream pieces (st : State.state) =
         let rec aux (st : State.state) =
-            Print.printHand pieces (State.hand st)
+            //Print.printHand pieces (State.hand st)
 
-            let result = getWords ['a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'g'] (State.dict st)
+            let result = getWords ['T'; 'O'; 'P'] (State.dict st)
+            printf "\n"
+
             for s in result do
-                forcePrint s
+                printf "%s \n" s
 
+            (*
             // remove the force print when you move on from manual input (or when you have learnt the format)
             forcePrint "Input move (format '(<x-coordinate> <y-coordinate> <piece id><character><point-value> )*', note the absence of space between the last inputs)\n\n"
             let input =  System.Console.ReadLine()
@@ -135,6 +139,7 @@ module Scrabble =
             | RCM (CMGameOver _) -> ()
             | RCM a -> failwith (sprintf "not implmented: %A" a)
             | RGPE err -> printfn "Gameplay Error:\n%A" err; aux st
+            *)
         aux st
 
     let startGame
