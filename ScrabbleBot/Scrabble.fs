@@ -146,40 +146,34 @@ module Scrabble =
             | RCM (CMPlaySuccess(ms, _, newPieces)) ->
                 let st' = st
                 
-                // Update the hand
                 let newHand = 
                     MultiSet.ofList (List.map (fun x -> fst (snd x)) ms) |>
                     MultiSet.fold (fun acc elm _ -> MultiSet.removeSingle elm acc) (State.hand st') |>
                     MultiSet.fold (fun acc elm _ -> MultiSet.addSingle elm acc) <|
                     MultiSet.ofList (List.map (fun x -> fst x) newPieces)
 
-                // Update player turn
                 let newPlayerTurn =
                     match st'.playerTurn with
                     | x when x = st'.numPlayers -> 1u
                     | x -> x + 1u
 
-                // Update board
                 let newPlayedLetters = List.append st'.playedLetters ms
 
                 aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn newHand newPlayedLetters)
             | RCM (CMPlayed (_, ms, _)) ->
                 let st' = st
 
-                // Update player turn
                 let newPlayerTurn =
                     match st'.playerTurn with
                     | x when x = st'.numPlayers -> 1u
                     | x -> x + 1u
 
-                // Update board
                 let newPlayedLetters = List.append st'.playedLetters ms
 
                 aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand newPlayedLetters)
             | RCM (CMPassed _) ->
                 let st' = st
 
-                // Update player turn
                 let newPlayerTurn =
                     match st'.playerTurn with
                     | x when x = st'.numPlayers -> 1u
@@ -191,8 +185,6 @@ module Scrabble =
 
                 // Update hand (This is missing)
 
-
-                // Update player turn
                 let newPlayerTurn =
                     match st'.playerTurn with
                     | x when x = st'.numPlayers -> 1u
@@ -202,7 +194,6 @@ module Scrabble =
             | RCM (CMChange _) ->
                 let st' = st
 
-                // Update player turn
                 let newPlayerTurn =
                     match st'.playerTurn with
                     | x when x = st'.numPlayers -> 1u
@@ -212,7 +203,6 @@ module Scrabble =
             | RCM (CMPlayFailed _) ->
                 let st' = st
 
-                // Update player turn
                 let newPlayerTurn =
                     match st'.playerTurn with
                     | x when x = st'.numPlayers -> 1u
@@ -222,7 +212,6 @@ module Scrabble =
             | RCM (CMTimeout _) ->
                 let st' = st
 
-                // Update player turn
                 let newPlayerTurn =
                     match st'.playerTurn with
                     | x when x = st'.numPlayers -> 1u
