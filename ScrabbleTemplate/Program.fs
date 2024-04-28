@@ -33,7 +33,7 @@ let main argv =
     // let board        = ScrabbleUtil.InfiniteHoleBoard.infiniteHoleBoard ()
 
     let words      = readLines "Dictionaries/English.txt"
-    let handSize   = 5u
+    let handSize   = 7u
     let timeout    = None
     let tiles      = ScrabbleUtil.English.tiles 1u
     let seed       = None

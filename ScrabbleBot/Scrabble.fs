@@ -45,7 +45,7 @@ module State =
     //let mkState b d np pn pt h pl = {board = b; dict = d; numPlayers = np; playerNumber = pn; playerTurn = pt; hand = h; playedLetters = pl}
     //let board st         = st.board
     let mkState b d np pn pt h pl = {boardFun = b; dict = d; numPlayers = np; playerNumber = pn; playerTurn = pt; hand = h; playedLetters = pl}
-    let boardFun st = st.boardFun
+    let boardFun st      = st.boardFun
     let dict st          = st.dict
     let numPlayers st    = st.numPlayers
     let playerNumber st  = st.playerNumber
@@ -56,7 +56,7 @@ module State =
 module Scrabble =
     open System.Threading
 
-    //method for finding the start of a word (first blank square)
+    // method for finding the start of a word (first blank square)
     let coordIsOccupied (playedLetters : List<coord * (uint32 * (char * int))>) (coord : coord) = 
         List.exists (fun (c, _) -> c = coord) playedLetters
 
@@ -65,7 +65,7 @@ module Scrabble =
             | true -> findStartPos st (fst currentCoords + 1, snd currentCoords)
             | false -> currentCoords
 
-    //find startWord:
+    // Find start word
     let rec findStartWord (playedLetters : List<coord * (uint32 * (char * int))>) (startPos : coord) =
         match playedLetters with
             |[] -> []
@@ -75,13 +75,19 @@ module Scrabble =
                 else
                     findStartWord rest startPos
 
-    
+    // Remove first occurence of item in list
     let rec removeItem itm lst =
         match lst with
         | x::lst when x = itm -> lst
         | x::lst -> x::removeItem itm lst
         | _ -> []
 
+    // Find all legal words by giving a list of letters
+    (*
+        let result = getWords ['A'; 'B'; 'C'; 'D'; 'E'; 'F'; 'G'] (State.dict st)
+        for s in result do
+            printf "%s \n" s
+    *)
     let getWords lst dict =
         let rec aux s lst dict =
             List.fold (fun acc elm -> 
@@ -113,29 +119,38 @@ module Scrabble =
             //still needs to check if chosen word is possible on the board (no overlapping, no sidewords, no nothing)
 
 
-    let playGame cstream pieces (st : State.state) =
+    let playGame cstream tiles (st : State.state) =
         let rec aux (st : State.state) =
-            Print.printHand pieces (State.hand st)
+            Thread.Sleep 1000
 
-            (*
-            let result = getWords ['A'; 'B'; 'C'; 'D'; 'E'; 'F'; 'G'] (State.dict st)
-            for s in result do
-                printf "%s \n" s
-            *)
-            
-            let input =  System.Console.ReadLine()
-            let move = RegEx.parseMove input
+            // Check that it is the current players turn
+            if st.playerNumber = st.playerTurn then
+                printf "Current player: %d \n" st.playerNumber
 
-            debugPrint (sprintf "Player %d -> Server:\n%A\n" (State.playerNumber st) move)
-            send cstream (SMPlay move)
+                if (State.boardFun st) (0, 0) then
+                    let cs = List.map (fun elm -> fst (Set.minElement (Map.find elm tiles))) (MultiSet.toList (State.hand st))
+                    let words = getWords cs (State.dict st)
+    
+                    for c in cs do
+                        printf "%c " c
+                    
+                    printf "\n"
+
+                    for word in words do
+                        printf "%s\n" word
+                
+                else
+                    send cstream SMPass
+        
+            //let input =  System.Console.ReadLine()
+            //let move = RegEx.parseMove input
 
             let msg = recv cstream
-            debugPrint (sprintf "Player %d <- Server:\n%A\n" (State.playerNumber st) move)
 
             match msg with
-            | RCM (CMPlaySuccess(ms, points, newPieces)) ->
+            | RCM (CMPlaySuccess(ms, _, newPieces)) ->
                 let st' = st
-
+                
                 // Update the hand
                 let multiMs = MultiSet.ofList (List.map (fun x -> (fst(snd x))) ms)
                 let lessHand = MultiSet.fold (fun acc elm _ -> MultiSet.removeSingle elm acc ) st'.hand multiMs
@@ -149,15 +164,11 @@ module Scrabble =
                     | x when x = st'.numPlayers -> 1u
                     | x -> x + 1u
 
-                // Update board / playedLetters
+                // Update board
                 let newPlayedLetters = List.append st'.playedLetters ms
-
-                // Update points?
-
-                // Maybe more should be updated?
 
                 aux (State.mkState st'.boardFun st'.dict st'.numPlayers st'.playerNumber newPlayerTurn moreHand newPlayedLetters)
-            | RCM (CMPlayed (pid, ms, points)) ->
+            | RCM (CMPlayed (_, ms, _)) ->
                 let st' = st
 
                 // Update player turn
@@ -166,15 +177,11 @@ module Scrabble =
                     | x when x = st'.numPlayers -> 1u
                     | x -> x + 1u
 
-                // Update board / playedLetters
+                // Update board
                 let newPlayedLetters = List.append st'.playedLetters ms
 
-                // Update points?
-
-                // Maybe more should be updated?
-
                 aux (State.mkState st'.boardFun st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand newPlayedLetters)
-            | RCM (CMPlayFailed (pid, ms)) ->
+            | RCM (CMPassed _) ->
                 let st' = st
 
                 // Update player turn
@@ -183,7 +190,35 @@ module Scrabble =
                     | x when x = st'.numPlayers -> 1u
                     | x -> x + 1u
 
-                // Maybe more should be updated?
+                aux (State.mkState st'.boardFun st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand st'.playedLetters)
+            | RCM (CMChange _) ->
+                let st' = st
+
+                // Update player turn
+                let newPlayerTurn =
+                    match st'.playerTurn with
+                    | x when x = st'.numPlayers -> 1u
+                    | x -> x + 1u
+
+                aux (State.mkState st'.boardFun st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand st'.playedLetters)
+            | RCM (CMPlayFailed _) ->
+                let st' = st
+
+                // Update player turn
+                let newPlayerTurn =
+                    match st'.playerTurn with
+                    | x when x = st'.numPlayers -> 1u
+                    | x -> x + 1u
+
+                aux (State.mkState st'.boardFun st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand st'.playedLetters)
+            | RCM (CMTimeout _) ->
+                let st' = st
+
+                // Update player turn
+                let newPlayerTurn =
+                    match st'.playerTurn with
+                    | x when x = st'.numPlayers -> 1u
+                    | x -> x + 1u
 
                 aux (State.mkState st'.boardFun st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand st'.playedLetters)
             | RCM (CMGameOver _) -> ()
@@ -196,7 +231,7 @@ module Scrabble =
             (dictf : bool -> Dictionary.Dict) 
             (numPlayers : uint32) 
             (playerNumber : uint32) 
-            (playerTurn  : uint32) 
+            (playerTurn  : uint32)
             (hand : (uint32 * uint32) list)
             (tiles : Map<uint32, tile>)
             (timeout : uint32 option) 
@@ -210,11 +245,9 @@ module Scrabble =
                       timeout = %A\n\n" numPlayers playerNumber playerTurn hand timeout)
 
         let dict = dictf false
-        //let board = Parser.mkBoard boardP
         let boardFun = Parser.mkBoardFun boardP
                   
         let handSet = List.fold (fun acc (x, k) -> MultiSet.add x k acc) MultiSet.empty hand
         let playedLetters = List.Empty
 
-        //fun () -> playGame cstream tiles (State.mkState board dict numPlayers playerNumber playerTurn handSet playedLetters)
         fun () -> playGame cstream tiles (State.mkState boardFun dict numPlayers playerNumber playerTurn handSet playedLetters)
