@@ -123,7 +123,7 @@ module Scrabble =
         let rec aux (st : State.state) =
             Thread.Sleep 1000
 
-            // Check that it is the current players turn
+            // Check that it is this players turn to make a move
             if st.playerNumber = st.playerTurn then
                 printf "Current player: %d \n" st.playerNumber
 
@@ -142,7 +142,7 @@ module Scrabble =
                 else
                     send cstream SMPass
         
-            //let input =  System.Console.ReadLine()
+            //let input = System.Console.ReadLine()
             //let move = RegEx.parseMove input
 
             let msg = recv cstream
@@ -152,11 +152,11 @@ module Scrabble =
                 let st' = st
                 
                 // Update the hand
-                let multiMs = MultiSet.ofList (List.map (fun x -> (fst(snd x))) ms)
-                let lessHand = MultiSet.fold (fun acc elm _ -> MultiSet.removeSingle elm acc ) st'.hand multiMs
-                
-                let multiNewPieces = MultiSet.ofList (List.map (fun x -> fst x) newPieces)
-                let moreHand = MultiSet.fold (fun acc elm _ -> MultiSet.addSingle elm acc ) lessHand multiNewPieces
+                let newHand = 
+                    MultiSet.ofList (List.map (fun x -> (fst(snd x))) ms) |>
+                    MultiSet.fold (fun acc elm _ -> MultiSet.removeSingle elm acc) (State.hand st') |>
+                    MultiSet.fold (fun acc elm _ -> MultiSet.addSingle elm acc) <|
+                    MultiSet.ofList (List.map (fun x -> fst x) newPieces)
 
                 // Update player turn
                 let newPlayerTurn =
@@ -167,7 +167,7 @@ module Scrabble =
                 // Update board
                 let newPlayedLetters = List.append st'.playedLetters ms
 
-                aux (State.mkState st'.boardFun st'.dict st'.numPlayers st'.playerNumber newPlayerTurn moreHand newPlayedLetters)
+                aux (State.mkState st'.boardFun st'.dict st'.numPlayers st'.playerNumber newPlayerTurn newHand newPlayedLetters)
             | RCM (CMPlayed (_, ms, _)) ->
                 let st' = st
 
