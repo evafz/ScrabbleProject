@@ -132,7 +132,10 @@ module Scrabble =
                             | false -> acc
                         ) List.empty words
 
-                    send cstream (SMPlay (List.mapi (fun i elm -> ((i, 0), elm)) bestWord))                    
+                    match List.length bestWord with
+                    // Change to this when CMChangeSuccess it implemented: | 0 -> send cstream (SMChange (MultiSet.toList (State.hand st)))
+                    | 0 -> send cstream SMPass
+                    | _ -> send cstream (SMPlay (List.mapi (fun i elm -> ((i, 0), elm)) bestWord))                    
                 else
                     // Switch this out with the code for finding words when the board is not empty.
                     send cstream SMPass
@@ -183,6 +186,19 @@ module Scrabble =
                     | x -> x + 1u
 
                 aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand st'.playedLetters)
+            |RCM (CMChangeSuccess ms) ->
+                let st' = st
+
+                // Update hand (This is missing)
+
+
+                // Update player turn
+                let newPlayerTurn =
+                    match st'.playerTurn with
+                    | x when x = st'.numPlayers -> 1u
+                    | x -> x + 1u
+
+                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand st'.playedLetters) 
             | RCM (CMChange _) ->
                 let st' = st
 
