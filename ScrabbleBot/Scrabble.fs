@@ -140,9 +140,7 @@ module Scrabble =
                     // Switch this out with the code for finding words when the board is not empty.
                     send cstream SMPass
 
-            let msg = recv cstream
-
-            match msg with
+            match recv cstream with
             | RCM (CMPlaySuccess(ms, _, newPieces)) ->
                 let st' = st
                 
