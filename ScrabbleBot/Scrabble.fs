@@ -74,6 +74,14 @@ module Scrabble =
             ) Set.empty lst
         aux List.empty dict lst
 
+    let getWordContinuations (dict : Dictionary.Dict) lst word =
+       
+        getWords (List.fold (fun acc elm ->
+            match Dictionary.step (fst (snd elm)) acc with
+                | None -> acc
+                | Some (b, newDict) -> newDict
+        ) dict word) lst 
+
     (*
     let findPossibleWords (st : State.state) (hand : MultiSet.MultiSet<uint32>) =
         //converts multiset<uint32> to list<char>
@@ -95,6 +103,14 @@ module Scrabble =
     let playGame cstream tiles (st : State.state) =
         let rec aux (st : State.state) =
             Thread.Sleep 1000
+            (*
+            let result = getWordContinuations (State.dict st) [(1,('E',1));(1,('L',1));(1,('R',1));(1,('S',1));] [(1,('T',1));(1,('O',1));(1,('W',1));];
+            for word in result do
+                forcePrint " :"
+                for char in word do
+                    forcePrint (string (fst (snd char)))
+            *)
+                 
 
             if st.playerNumber = st.playerTurn then
                 if (State.board st) (0, 0) && List.isEmpty (State.playedLetters st) then
