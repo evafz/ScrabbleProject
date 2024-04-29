@@ -196,6 +196,22 @@ module Scrabble =
                     | x -> x + 1u
 
                 aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand st'.playedLetters)
+            
+            | RCM (CMForfeit pid) ->
+            //this version of updating on forfeit changes the player's (our) number/id
+            //if the id needs to stay the same, just create a new uint32 to keep track of the "internal id"
+                let st' = st
+                let newNumPlayers = st'.numPlayers - 1u
+                let newPlayerNumber =
+                    match st'.playerNumber with
+                        | x when x > st'.playerTurn -> st'.playerNumber - 1u
+                        | x when x > newNumPlayers -> st'.playerNumber - 1u
+                        | x -> x
+                let newPlayerTurn =
+                    match st'.playerTurn with
+                    | x when x > newNumPlayers -> 1u
+                    | x -> x
+                aux (State.mkState st'.board st'.dict newNumPlayers newPlayerNumber newPlayerTurn st'.hand st'.playedLetters)
             | RCM (CMGameOver _) -> ()
             | RCM a -> failwith (sprintf "not implmented: %A" a)
             | RGPE err -> printfn "Gameplay Error:\n%A" err; aux st
