@@ -82,6 +82,35 @@ module Scrabble =
                 | Some (b, newDict) -> newDict
         ) dict word) lst 
 
+    //Helper function to check that a word actually starts with a specific sequence of letters (another word)
+    let rec startsWithLetters (letters : list<'a * (char * 'b)>) (word : list<'a * (char * 'b)>) =
+        let rec startsWithLettersHelper letters word = 
+            match letters, word with
+                |[], _ -> true
+                |_, [] -> false
+                |(_, (x, _))::xs, (_, (y, _))::ys -> if x=y then startsWithLettersHelper xs ys
+                                                            else false
+        startsWithLettersHelper letters word
+
+    //getWords but with start letters/already placed word
+    let getWordsWithStartLetters dict lst startLetters=
+        let rec aux word dict lst =
+            List.fold (fun acc elm -> 
+                match Dictionary.step (fst (snd elm)) dict with
+                    | None -> acc
+                    | Some (b, newDict) ->
+                        let newWord = word @ [elm]
+                        let newLst = removeElement elm lst
+                        match b with
+                            | false -> acc |> Set.union (aux newWord newDict newLst)
+                            | true -> let words = aux newWord newDict newLst
+                                      if startsWithLetters startLetters newWord then
+                                        acc |> Set.union (Set.add newWord words)
+                                      else acc |> Set.union words
+            ) Set.empty lst
+        aux List.empty dict lst
+
+
     (*
     let findPossibleWords (st : State.state) (hand : MultiSet.MultiSet<uint32>) =
         //converts multiset<uint32> to list<char>
@@ -119,7 +148,10 @@ module Scrabble =
                         MultiSet.toList |>
                         List.map (fun elm -> (elm, Set.minElement (Map.find elm tiles)))
 
-                    let words = getWords (State.dict st) cs 
+                    let words = getWordsWithStartLetters (State.dict st) cs [(1u, ('A', 1))] //CAN NOW ONLY PLAY WORDS THAT START WITH A
+                    // for word in words do 
+                    //     for letter in word do printf "%A" letter //printf "%c" (fst (snd letter))
+                    //     printf "\n"
                     
                     let bestWord = 
                         Set.fold (fun acc elm -> 
