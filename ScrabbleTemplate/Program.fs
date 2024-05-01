@@ -40,8 +40,8 @@ let main argv =
     let dictAPI = Some (Dictionary.empty, Dictionary.insert, Dictionary.step, None)     
 
     let (dictionary, _) = time (fun () -> ScrabbleUtil.Dictionary.mkDict words dictAPI)
-    let players = [("FuncPro", dictionary, FuncPro.Scrabble.startGame)] @ ["OxypenButazone", dictionary, Oxyphenbutazone.Scrabble.startGame]
-    //let players = spawnMultiples "FuncPro" dictionary FuncPro.Scrabble.startGame 2
+    //let players = [("FuncPro", dictionary, FuncPro.Scrabble.startGame)] @ ["OxypenButazone", dictionary, Oxyphenbutazone.Scrabble.startGame]
+    let players = spawnMultiples "FuncPro" dictionary FuncPro.Scrabble.startGame 1
 
     do ScrabbleServer.Comm.startGame 
           board dictionary handSize timeout tiles seed port players

@@ -21,7 +21,8 @@ module State =
         playedLetters : List<coord * (uint32 * (char * int))>
     }
 
-    let mkState b d np pn pt h pl = {board = b; dict = d; numPlayers = np; playerNumber = pn; playerTurn = pt; hand = h; playedLetters = pl}
+    let mkInitialState b d np pn pt h pl = {board = b; dict = d; numPlayers = np; playerNumber = pn; playerTurn = pt; hand = h; playedLetters = pl}
+    let mkState st np pn pt h pl = {board = st.board; dict = st.dict; numPlayers = np; playerNumber = pn; playerTurn = pt; hand = h; playedLetters = pl}
     let board st         = st.board
     let dict st          = st.dict
     let numPlayers st    = st.numPlayers
@@ -74,15 +75,21 @@ module Scrabble =
             ) Set.empty lst
         aux List.empty dict lst
 
+    (*
+        let result = getWordContinuations (State.dict st) [(1,('E',1));(1,('L',1));(1,('R',1));(1,('S',1));] [(1,('T',1));(1,('O',1));(1,('W',1));];
+        for word in result do
+            forcePrint " :"
+            for char in word do
+                forcePrint (string (fst (snd char)))
+    *)
     let getWordContinuations (dict : Dictionary.Dict) lst word =
-       
         getWords (List.fold (fun acc elm ->
             match Dictionary.step (fst (snd elm)) acc with
                 | None -> acc
                 | Some (b, newDict) -> newDict
-        ) dict word) lst 
+        ) dict word) lst
 
-    //Helper function to check that a word actually starts with a specific sequence of letters (another word)
+    // Helper function to check that a word actually starts with a specific sequence of letters (another word)
     let rec startsWithLetters (letters : list<'a * (char * 'b)>) (word : list<'a * (char * 'b)>) =
         let rec startsWithLettersHelper letters word = 
             match letters, word with
@@ -92,7 +99,7 @@ module Scrabble =
                                                             else false
         startsWithLettersHelper letters word
 
-    //getWords but with start letters/already placed word
+    // getWords but with start letters/already placed word
     let getWordsWithStartLetters dict lst startLetters=
         let rec aux word dict lst =
             List.fold (fun acc elm -> 
@@ -128,26 +135,18 @@ module Scrabble =
             //still needs to check if chosen word is possible on the board (no overlapping, no sidewords, no nothing)
     *)
 
-    let getNewPlayerTurn st =
+    let getNewPlayedLetters st ms = List.append (State.playedLetters st) ms
+    let addPieces pieces hand = List.fold (fun acc (c, n) -> MultiSet.add c n acc) hand pieces
+    let getNextPlayerTurn st =
         match State.playerTurn st with
         | x when x = State.numPlayers st -> 1u
         | x -> x + 1u
 
-    let getNewPlayedLetters st ms = List.append (State.playedLetters st) ms
-
     let playGame cstream tiles (st : State.state) =
         let rec aux (st : State.state) =
-            (*
-            let result = getWordContinuations (State.dict st) [(1,('E',1));(1,('L',1));(1,('R',1));(1,('S',1));] [(1,('T',1));(1,('O',1));(1,('W',1));];
-            for word in result do
-                forcePrint " :"
-                for char in word do
-                    forcePrint (string (fst (snd char)))
-            *)
-                 
-            match st.playerNumber = st.playerTurn with
+            match State.playerNumber st = State.playerTurn st with
             | true ->
-                match (State.board st) (0, 0) && List.isEmpty (State.playedLetters st) with
+                match State.board st (0, 0) && List.isEmpty (State.playedLetters st) with
                 | true ->
                     let cs = 
                         State.hand st |>
@@ -167,65 +166,42 @@ module Scrabble =
                     | 0 -> send cstream (SMChange (MultiSet.toList (State.hand st)))
                     | _ -> send cstream (SMPlay (List.mapi (fun i elm -> ((i, 0), elm)) bestWord))
                 
-                // Switch this out with the code for finding words when the board is not empty.
+                // Change the "| false -> send cstream SMPass", with code that calculates a move when the board is not empty.
                 | false -> send cstream SMPass
             | false -> ()
 
             match recv cstream with
             | RCM (CMPlaySuccess(ms, _, newPieces)) ->
-                let st' = st
-                
-                let newHand = 
-                    MultiSet.ofList (List.map (fun x -> fst (snd x)) ms) |>
-                    MultiSet.fold (fun acc elm _ -> MultiSet.removeSingle elm acc) (State.hand st') |>
-                    MultiSet.fold (fun acc elm _ -> MultiSet.addSingle elm acc) <|
-                    MultiSet.ofList (List.map (fun x -> fst x) newPieces)
-
-                let newPlayerTurn = getNewPlayerTurn st'
-                let newPlayedLetters = getNewPlayedLetters st' ms
-                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn newHand newPlayedLetters)
+                let newHand = List.fold (fun acc elm -> MultiSet.removeSingle (fst (snd elm)) acc) (State.hand st) ms |> addPieces newPieces
+                let newPlayerTurn = getNextPlayerTurn st
+                let newPlayedLetters =  getNewPlayedLetters st ms
+                aux (State.mkState st (State.numPlayers st) (State.playerNumber st) newPlayerTurn newHand newPlayedLetters)
             | RCM (CMPlayed (_, ms, _)) ->
-                let st' = st
-                let newPlayerTurn = getNewPlayerTurn st'
-                let newPlayedLetters = getNewPlayedLetters st' ms
-                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand newPlayedLetters)
+                let newPlayerTurn = getNextPlayerTurn st
+                let newPlayedLetters = getNewPlayedLetters st ms
+                aux (State.mkState st (State.numPlayers st) (State.playerNumber st) newPlayerTurn (State.hand st) newPlayedLetters)
             | RCM (CMChangeSuccess newPieces) ->
-                let st' = st
-
-                let newHand = 
-                    MultiSet.ofList <|
-                    List.fold (fun acc elm -> 
-                        let rec aux elm =
-                            match elm with
-                            | (c, 1u) -> [c] 
-                            | (c, n) -> [c] @ aux (c, n - 1u)              
-                        acc @ aux elm
-                    ) List.Empty newPieces
-                
-                let newPlayerTurn = getNewPlayerTurn st'
-                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn newHand st'.playedLetters) 
+                let newHand = addPieces newPieces MultiSet.empty
+                let newPlayerTurn = getNextPlayerTurn st
+                aux (State.mkState st (State.numPlayers st) (State.playerNumber st) newPlayerTurn newHand (State.playedLetters st)) 
             | RCM (CMForfeit _) ->
-                let st' = st
-
-                let newNumPlayers = st'.numPlayers - 1u
-                
+                let newNumPlayers = State.numPlayers st - 1u
                 let newPlayerNumber =
-                    match st'.playerNumber with
-                    | x when x > st'.playerTurn -> st'.playerNumber - 1u
-                    | x when x > newNumPlayers -> st'.playerNumber - 1u
-                    | x -> x
-
+                    match State.playerNumber st with
+                    | n when n > State.playerTurn st -> n - 1u
+                    | n when n > newNumPlayers -> n - 1u
+                    | n -> n
+                
                 let newPlayerTurn =
-                    match st'.playerTurn with
+                    match State.playerTurn st with
                     | x when x > newNumPlayers -> 1u
                     | x -> x
 
-                aux (State.mkState st'.board st'.dict newNumPlayers newPlayerNumber newPlayerTurn st'.hand st'.playedLetters)
+                aux (State.mkState st newNumPlayers newPlayerNumber newPlayerTurn (State.hand st) (State.playedLetters st))
             | RCM (CMGameOver _) -> ()
             | RCM _ ->
-                let st' = st
-                let newPlayerTurn = getNewPlayerTurn st'
-                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand st'.playedLetters)
+                let newPlayerTurn = getNextPlayerTurn st
+                aux (State.mkState st (State.numPlayers st) (State.playerNumber st) newPlayerTurn (State.hand st) (State.playedLetters st))
             | RGPE err -> printfn "Gameplay Error:\n%A" err; aux st
         aux st
 
@@ -253,4 +229,4 @@ module Scrabble =
         let handSet = List.fold (fun acc (x, k) -> MultiSet.add x k acc) MultiSet.empty hand
         let playedLetters = List.Empty
 
-        fun () -> playGame cstream tiles (State.mkState boardFun dict numPlayers playerNumber playerTurn handSet playedLetters)
+        fun () -> playGame cstream tiles (State.mkInitialState boardFun dict numPlayers playerNumber playerTurn handSet playedLetters)
