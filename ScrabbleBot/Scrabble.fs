@@ -130,7 +130,6 @@ module Scrabble =
 
     let playGame cstream tiles (st : State.state) =
         let rec aux (st : State.state) =
-            Thread.Sleep 1000
             (*
             let result = getWordContinuations (State.dict st) [(1,('E',1));(1,('L',1));(1,('R',1));(1,('S',1));] [(1,('T',1));(1,('O',1));(1,('W',1));];
             for word in result do
@@ -139,8 +138,10 @@ module Scrabble =
                     forcePrint (string (fst (snd char)))
             *)
                  
-            if st.playerNumber = st.playerTurn then
-                if (State.board st) (0, 0) && List.isEmpty (State.playedLetters st) then
+            match st.playerNumber = st.playerTurn with
+            | true ->
+                match (State.board st) (0, 0) && List.isEmpty (State.playedLetters st) with
+                | true ->
                     let cs = 
                         State.hand st |>
                         MultiSet.toList |>
@@ -158,9 +159,10 @@ module Scrabble =
                     match List.length bestWord with
                     | 0 -> send cstream (SMChange (MultiSet.toList (State.hand st)))
                     | _ -> send cstream (SMPlay (List.mapi (fun i elm -> ((i, 0), elm)) bestWord))
-                else
-                    // Switch this out with the code for finding words when the board is not empty.
-                    send cstream SMPass
+                
+                // Switch this out with the code for finding words when the board is not empty.
+                | false -> send cstream SMPass
+            | false -> ()
 
             match recv cstream with
             | RCM (CMPlaySuccess(ms, _, newPieces)) ->

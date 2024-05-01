@@ -15,7 +15,7 @@ let spawnMultiples name dict bot =
 
 [<EntryPoint>]
 let main argv =
-    ScrabbleUtil.DebugPrint.toggleDebugPrint false // Change to false to supress debug output
+    ScrabbleUtil.DebugPrint.toggleDebugPrint false
 
     System.Console.BackgroundColor <- System.ConsoleColor.Black
     System.Console.ForegroundColor <- System.ConsoleColor.White
@@ -23,12 +23,10 @@ let main argv =
 
     let board        = ScrabbleUtil.StandardBoard.standardBoard ()
     // let board        = ScrabbleUtil.InfiniteBoard.infiniteBoard ()
-
     // let board        = ScrabbleUtil.RandomBoard.randomBoard ()
     // let board        = ScrabbleUtil.RandomBoard.randomBoardSeed (Some 42)
     // let board        = ScrabbleUtil.InfiniteRandomBoard.infiniteRandomBoard ()
     // let board        = ScrabbleUtil.InfiniteRandomBoard.infiniteRandomBoardSeed (Some 42)
-
     // let board        = ScrabbleUtil.HoleBoard.holeBoard ()
     // let board        = ScrabbleUtil.InfiniteHoleBoard.infiniteHoleBoard ()
 
@@ -39,15 +37,11 @@ let main argv =
     let seed       = None
     let port       = 13001
 
-    
+    let dictAPI = Some (Dictionary.empty, Dictionary.insert, Dictionary.step, None)     
 
-    let dictAPI = Some (Dictionary.empty, Dictionary.insert, Dictionary.step, None) 
-    
-    
-    let (dictionary, time) = time (fun () -> ScrabbleUtil.Dictionary.mkDict words dictAPI)
-    //let players    = [("FuncPro", FuncPro.Scrabble.startGame)]
-    let players    = spawnMultiples "FuncPro" dictionary FuncPro.Scrabble.startGame 1
-    //let players = spawnMultiples "OxyphenButazone" dictionary Oxyphenbutazone.Scrabble.startGame 2
+    let (dictionary, _) = time (fun () -> ScrabbleUtil.Dictionary.mkDict words dictAPI)
+    let players = [("FuncPro", dictionary, FuncPro.Scrabble.startGame)] @ ["OxypenButazone", dictionary, Oxyphenbutazone.Scrabble.startGame]
+    //let players = spawnMultiples "FuncPro" dictionary FuncPro.Scrabble.startGame 2
 
     do ScrabbleServer.Comm.startGame 
           board dictionary handSize timeout tiles seed port players
