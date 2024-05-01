@@ -64,13 +64,13 @@ module Scrabble =
         let rec aux word dict lst =
             List.fold (fun acc elm -> 
                 match Dictionary.step (fst (snd elm)) dict with
-                    | None -> acc
-                    | Some (b, newDict) ->
-                        let newWord = word @ [elm]
-                        let newLst = removeElement elm lst
-                        match b with
-                            | false -> acc |> Set.union (aux newWord newDict newLst)
-                            | true -> acc |> Set.union (aux newWord newDict newLst) |> Set.add newWord
+                | None -> acc
+                | Some (b, newDict) ->
+                    let newWord = word @ [elm]
+                    let newLst = removeElement elm lst
+                    match b with
+                    | false -> acc |> Set.union (aux newWord newDict newLst)
+                    | true -> acc |> Set.union (aux newWord newDict newLst) |> Set.add newWord
             ) Set.empty lst
         aux List.empty dict lst
 
