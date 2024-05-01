@@ -18,7 +18,7 @@ module State =
         playerNumber  : uint32
         playerTurn    : uint32
         hand          : MultiSet.MultiSet<uint32>
-        playedLetters : List<coord * (uint32 * (char * int))>
+        playedLetters : Map<coord, (uint32 * (char * int))>
     }
 
     let mkState b d np pn pt h pl = {board = b; dict = d; numPlayers = np; playerNumber = pn; playerTurn = pt; hand = h; playedLetters = pl}
@@ -34,23 +34,34 @@ module Scrabble =
     open System.Threading
 
     // method for finding the start of a word (first blank square)
-    let coordIsOccupied (playedLetters : List<coord * (uint32 * (char * int))>) (coord : coord) = 
-        List.exists (fun (c, _) -> c = coord) playedLetters
+    // let coordIsOccupied (playedLetters : List<coord * (uint32 * (char * int))>) (coord : coord) = 
+    //     List.exists (fun (c, _) -> c = coord) playedLetters
 
-    let rec findStartPos (st : State.state) (currentCoords : coord) = 
-        match coordIsOccupied st.playedLetters currentCoords with 
-            | true -> findStartPos st (fst currentCoords + 1, snd currentCoords)
-            | false -> currentCoords
+    // let rec findStartPos (st : State.state) (currentCoords : coord) = 
+    //     match coordIsOccupied st.playedLetters currentCoords with 
+    //         | true -> findStartPos st (fst currentCoords + 1, snd currentCoords)
+    //         | false -> currentCoords
+
+    let findRestOfWord (startPos : coord ) (playedLetters : Map<coord, (uint32 * (char * int))>) =
+        //let listPlayedLetters = Map.fold (fun acc elm -> List. elm acc) List.Empty playedLetters
+        let rec aux word startPos (playedLetters :  Map<coord, (uint32 * (char * int))>) = 
+            Map.fold 
+            match playedLetters with
+                | ((x,y), (_, (letter, _))) -> if x = (fst startPos) + 1 then aux (letter :: word) (x, y) playedLetters
+
+        let word = List.Empty
+        aux word startPos playedLetters
 
     // Find start word
-    let rec findStartWord (playedLetters : List<coord * (uint32 * (char * int))>) (startPos : coord) =
+    let rec findWordHorizontal (playedLetters : Map<coord, (uint32 * (char * int))>) =
         match playedLetters with
-            |[] -> []
-            | ((x,y), (_, (letter, _))) :: rest -> 
-                if (x, y) = startPos then
-                    letter :: findStartWord rest (x + 1, y)
-                else
-                    findStartWord rest startPos
+            |((x,y), (_, (letter, _))) -> 
+                    if !(Map.containsKey (x-1,y) playedLetters) then
+                        match 
+                // if Map. ((x,y), (1u, ('T', 2))) playedLetters then
+                //     letter :: findWordHorizontal rest (x + 1, y)
+                // else
+                //     findWordHorizontal rest startPos
 
     // Remove first occurence of element in list
     let rec removeElement itm lst =
@@ -251,6 +262,6 @@ module Scrabble =
         let boardFun = Parser.mkBoardFun boardP
                   
         let handSet = List.fold (fun acc (x, k) -> MultiSet.add x k acc) MultiSet.empty hand
-        let playedLetters = List.Empty
+        let playedLetters = Map.empty
 
         fun () -> playGame cstream tiles (State.mkState boardFun dict numPlayers playerNumber playerTurn handSet playedLetters)
