@@ -22,7 +22,7 @@ module State =
     }
 
     let mkState b d np pn pt h pl = {board = b; dict = d; numPlayers = np; playerNumber = pn; playerTurn = pt; hand = h; playedLetters = pl}
-    let board st      = st.board
+    let board st         = st.board
     let dict st          = st.dict
     let numPlayers st    = st.numPlayers
     let playerNumber st  = st.playerNumber
@@ -110,7 +110,6 @@ module Scrabble =
             ) Set.empty lst
         aux List.empty dict lst
 
-
     (*
     let findPossibleWords (st : State.state) (hand : MultiSet.MultiSet<uint32>) =
         //converts multiset<uint32> to list<char>
@@ -140,7 +139,6 @@ module Scrabble =
                     forcePrint (string (fst (snd char)))
             *)
                  
-
             if st.playerNumber = st.playerTurn then
                 if (State.board st) (0, 0) && List.isEmpty (State.playedLetters st) then
                     let cs = 
@@ -148,10 +146,7 @@ module Scrabble =
                         MultiSet.toList |>
                         List.map (fun elm -> (elm, Set.minElement (Map.find elm tiles)))
 
-                    let words = getWordsWithStartLetters (State.dict st) cs [(1u, ('A', 1))] //CAN NOW ONLY PLAY WORDS THAT START WITH A
-                    // for word in words do 
-                    //     for letter in word do printf "%A" letter //printf "%c" (fst (snd letter))
-                    //     printf "\n"
+                    let words = getWords (State.dict st) cs
                     
                     let bestWord = 
                         Set.fold (fun acc elm -> 
@@ -161,9 +156,8 @@ module Scrabble =
                         ) List.empty words
 
                     match List.length bestWord with
-                    // Change to this when CMChangeSuccess it implemented: | 0 -> send cstream (SMChange (MultiSet.toList (State.hand st)))
-                    | 0 -> send cstream SMPass
-                    | _ -> send cstream (SMPlay (List.mapi (fun i elm -> ((i, 0), elm)) bestWord))                    
+                    | 0 -> send cstream (SMChange (MultiSet.toList (State.hand st)))
+                    | _ -> send cstream (SMPlay (List.mapi (fun i elm -> ((i, 0), elm)) bestWord))
                 else
                     // Switch this out with the code for finding words when the board is not empty.
                     send cstream SMPass
@@ -206,17 +200,25 @@ module Scrabble =
                     | x -> x + 1u
 
                 aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand st'.playedLetters)
-            |RCM (CMChangeSuccess ms) ->
+            |RCM (CMChangeSuccess newPieces) ->
                 let st' = st
 
-                // Update hand (This is missing)
-
+                let newHand = 
+                    MultiSet.ofList <|
+                    List.fold (fun acc elm -> 
+                        let rec aux elm =
+                            match elm with
+                            | (c, 1u) -> [c] 
+                            | (c, n) -> [c] @ aux (c, n - 1u)              
+                        acc @ aux elm
+                    ) List.Empty newPieces
+                
                 let newPlayerTurn =
                     match st'.playerTurn with
                     | x when x = st'.numPlayers -> 1u
                     | x -> x + 1u
 
-                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand st'.playedLetters) 
+                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn newHand st'.playedLetters) 
             | RCM (CMChange _) ->
                 let st' = st
 
@@ -244,24 +246,24 @@ module Scrabble =
                     | x -> x + 1u
 
                 aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand st'.playedLetters)
-            
-            | RCM (CMForfeit pid) ->
-            //this version of updating on forfeit changes the player's (our) number/id
-            //if the id needs to stay the same, just create a new uint32 to keep track of the "internal id"
+            | RCM (CMForfeit _) ->
                 let st' = st
+
                 let newNumPlayers = st'.numPlayers - 1u
+                
                 let newPlayerNumber =
                     match st'.playerNumber with
-                        | x when x > st'.playerTurn -> st'.playerNumber - 1u
-                        | x when x > newNumPlayers -> st'.playerNumber - 1u
-                        | x -> x
+                    | x when x > st'.playerTurn -> st'.playerNumber - 1u
+                    | x when x > newNumPlayers -> st'.playerNumber - 1u
+                    | x -> x
+
                 let newPlayerTurn =
                     match st'.playerTurn with
                     | x when x > newNumPlayers -> 1u
                     | x -> x
+
                 aux (State.mkState st'.board st'.dict newNumPlayers newPlayerNumber newPlayerTurn st'.hand st'.playedLetters)
             | RCM (CMGameOver _) -> ()
-            | RCM a -> failwith (sprintf "not implmented: %A" a)
             | RGPE err -> printfn "Gameplay Error:\n%A" err; aux st
         aux st
 
