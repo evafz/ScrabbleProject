@@ -40,6 +40,7 @@ let main argv =
     let dictAPI = Some (Dictionary.empty, Dictionary.insert, Dictionary.step, None)     
 
     let (dictionary, _) = time (fun () -> ScrabbleUtil.Dictionary.mkDict words dictAPI)
+    
     //let players = [("FuncPro", dictionary, FuncPro.Scrabble.startGame)] @ ["OxypenButazone", dictionary, Oxyphenbutazone.Scrabble.startGame]
     let players = spawnMultiples "FuncPro" dictionary FuncPro.Scrabble.startGame 1
 
