@@ -85,8 +85,8 @@ module Scrabble =
                     let newWord = word @ [elm]
                     let newLst = removeElement elm lst
                     match b with
-                    | false -> acc |> Set.union (aux newWord newDict newLst)
-                    | true -> acc |> Set.union (aux newWord newDict newLst) |> Set.add newWord
+                    | false -> Set.union (aux newWord newDict newLst) acc
+                    | true -> Set.union (aux newWord newDict newLst) acc |> Set.add newWord
             ) Set.empty lst
         aux List.empty dict lst
 
@@ -97,38 +97,43 @@ module Scrabble =
             for char in word do
                 forcePrint (string (fst (snd char)))
     *)
-    let getWordContinuations (dict : Dictionary.Dict) lst word =
-        getWords (List.fold (fun acc elm ->
-            match Dictionary.step (fst (snd elm)) acc with
+    let getWordContinuations dict lst word =
+        getWords (
+            List.fold (fun acc elm ->
+                match Dictionary.step (fst (snd elm)) acc with
                 | None -> acc
-                | Some (b, newDict) -> newDict
-        ) dict word) lst
+                | Some (_, newDict) -> newDict
+            ) dict word
+        ) lst
 
     // Helper function to check that a word actually starts with a specific sequence of letters (another word)
-    let rec startsWithLetters (letters : list<'a * (char * 'b)>) (word : list<'a * (char * 'b)>) =
+    let rec startsWithLetters letters word =
         let rec startsWithLettersHelper letters word = 
             match letters, word with
-                |[], _ -> true
-                |_, [] -> false
-                |(_, (x, _))::xs, (_, (y, _))::ys -> if x=y then startsWithLettersHelper xs ys
-                                                            else false
+            | [], _ -> true
+            | _, [] -> false
+            | (_, (x, _))::xs, (_, (y, _))::ys -> 
+                match x = y with 
+                | true -> startsWithLettersHelper xs ys
+                | false -> false
         startsWithLettersHelper letters word
 
     // getWords but with start letters/already placed word
-    let getWordsWithStartLetters dict lst startLetters=
+    let getWordsWithStartLetters dict lst startLetters =
         let rec aux word dict lst =
             List.fold (fun acc elm -> 
                 match Dictionary.step (fst (snd elm)) dict with
-                    | None -> acc
-                    | Some (b, newDict) ->
-                        let newWord = word @ [elm]
-                        let newLst = removeElement elm lst
-                        match b with
-                            | false -> acc |> Set.union (aux newWord newDict newLst)
-                            | true -> let words = aux newWord newDict newLst
-                                      if startsWithLetters startLetters newWord then
-                                        acc |> Set.union (Set.add newWord words)
-                                      else acc |> Set.union words
+                | None -> acc
+                | Some (b, newDict) ->
+                    let newWord = word @ [elm]
+                    let newLst = removeElement elm lst
+                    match b with
+                    | false -> Set.union (aux newWord newDict newLst) acc
+                    | true -> 
+                        let words = aux newWord newDict newLst
+                        match startsWithLetters startLetters newWord with
+                        | true -> Set.union (Set.add newWord words) acc
+                        | false -> Set.union words acc      
             ) Set.empty lst
         aux List.empty dict lst
 
