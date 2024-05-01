@@ -128,6 +128,13 @@ module Scrabble =
             //still needs to check if chosen word is possible on the board (no overlapping, no sidewords, no nothing)
     *)
 
+    let getNewPlayerTurn st =
+        match State.playerTurn st with
+        | x when x = State.numPlayers st -> 1u
+        | x -> x + 1u
+
+    let getNewPlayedLetters st ms = List.append (State.playedLetters st) ms
+
     let playGame cstream tiles (st : State.state) =
         let rec aux (st : State.state) =
             (*
@@ -174,35 +181,15 @@ module Scrabble =
                     MultiSet.fold (fun acc elm _ -> MultiSet.addSingle elm acc) <|
                     MultiSet.ofList (List.map (fun x -> fst x) newPieces)
 
-                let newPlayerTurn =
-                    match st'.playerTurn with
-                    | x when x = st'.numPlayers -> 1u
-                    | x -> x + 1u
-
-                let newPlayedLetters = List.append st'.playedLetters ms
-
+                let newPlayerTurn = getNewPlayerTurn st'
+                let newPlayedLetters = getNewPlayedLetters st' ms
                 aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn newHand newPlayedLetters)
             | RCM (CMPlayed (_, ms, _)) ->
                 let st' = st
-
-                let newPlayerTurn =
-                    match st'.playerTurn with
-                    | x when x = st'.numPlayers -> 1u
-                    | x -> x + 1u
-
-                let newPlayedLetters = List.append st'.playedLetters ms
-
+                let newPlayerTurn = getNewPlayerTurn st'
+                let newPlayedLetters = getNewPlayedLetters st' ms
                 aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand newPlayedLetters)
-            | RCM (CMPassed _) ->
-                let st' = st
-
-                let newPlayerTurn =
-                    match st'.playerTurn with
-                    | x when x = st'.numPlayers -> 1u
-                    | x -> x + 1u
-
-                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand st'.playedLetters)
-            |RCM (CMChangeSuccess newPieces) ->
+            | RCM (CMChangeSuccess newPieces) ->
                 let st' = st
 
                 let newHand = 
@@ -215,39 +202,8 @@ module Scrabble =
                         acc @ aux elm
                     ) List.Empty newPieces
                 
-                let newPlayerTurn =
-                    match st'.playerTurn with
-                    | x when x = st'.numPlayers -> 1u
-                    | x -> x + 1u
-
+                let newPlayerTurn = getNewPlayerTurn st'
                 aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn newHand st'.playedLetters) 
-            | RCM (CMChange _) ->
-                let st' = st
-
-                let newPlayerTurn =
-                    match st'.playerTurn with
-                    | x when x = st'.numPlayers -> 1u
-                    | x -> x + 1u
-
-                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand st'.playedLetters)
-            | RCM (CMPlayFailed _) ->
-                let st' = st
-
-                let newPlayerTurn =
-                    match st'.playerTurn with
-                    | x when x = st'.numPlayers -> 1u
-                    | x -> x + 1u
-
-                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand st'.playedLetters)
-            | RCM (CMTimeout _) ->
-                let st' = st
-
-                let newPlayerTurn =
-                    match st'.playerTurn with
-                    | x when x = st'.numPlayers -> 1u
-                    | x -> x + 1u
-
-                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand st'.playedLetters)
             | RCM (CMForfeit _) ->
                 let st' = st
 
@@ -266,6 +222,10 @@ module Scrabble =
 
                 aux (State.mkState st'.board st'.dict newNumPlayers newPlayerNumber newPlayerTurn st'.hand st'.playedLetters)
             | RCM (CMGameOver _) -> ()
+            | RCM _ ->
+                let st' = st
+                let newPlayerTurn = getNewPlayerTurn st'
+                aux (State.mkState st'.board st'.dict st'.numPlayers st'.playerNumber newPlayerTurn st'.hand st'.playedLetters)
             | RGPE err -> printfn "Gameplay Error:\n%A" err; aux st
         aux st
 
