@@ -23,12 +23,12 @@ module State =
 
     let mkInitialState b d np pn pt h pl = {board = b; dict = d; numPlayers = np; playerNumber = pn; playerTurn = pt; hand = h; playedLetters = pl}
     let mkState st np pn pt h pl = {board = st.board; dict = st.dict; numPlayers = np; playerNumber = pn; playerTurn = pt; hand = h; playedLetters = pl}
-    let board st         = st.board
-    let dict st          = st.dict
-    let numPlayers st    = st.numPlayers
-    let playerNumber st  = st.playerNumber
-    let playerTurn st    = st.playerTurn
-    let hand st          = st.hand
+    let board st = st.board
+    let dict st = st.dict
+    let numPlayers st = st.numPlayers
+    let playerNumber st = st.playerNumber
+    let playerTurn st = st.playerTurn
+    let hand st = st.hand
     let playedLetters st = st.playedLetters
 
 module Scrabble =
@@ -43,6 +43,7 @@ module Scrabble =
     //         | true -> findStartPos st (fst currentCoords + 1, snd currentCoords)
     //         | false -> currentCoords
 
+    (*
     let findRestOfWord (startPos : coord ) (playedLetters : Map<coord, (uint32 * (char * int))>) =
         //let listPlayedLetters = Map.fold (fun acc elm -> List. elm acc) List.Empty playedLetters
         let rec aux word startPos (playedLetters :  Map<coord, (uint32 * (char * int))>) = 
@@ -52,8 +53,10 @@ module Scrabble =
 
         let word = List.Empty
         aux word startPos playedLetters
+    *)
 
     // Find start word
+    (*
     let rec findWordHorizontal (playedLetters : Map<coord, (uint32 * (char * int))>) =
         match playedLetters with
             |((x,y), (_, (letter, _))) -> 
@@ -63,6 +66,7 @@ module Scrabble =
                 //     letter :: findWordHorizontal rest (x + 1, y)
                 // else
                 //     findWordHorizontal rest startPos
+    *)
 
     // Remove first occurence of element in list
     let rec removeElement itm lst =
@@ -146,7 +150,7 @@ module Scrabble =
             //still needs to check if chosen word is possible on the board (no overlapping, no sidewords, no nothing)
     *)
 
-    let getNewPlayedLetters st ms = List.append (State.playedLetters st) ms
+    let getNewPlayedLetters st ms = List.fold (fun acc (coord, tile) -> Map.add coord tile acc) (State.playedLetters st) ms
     let addPieces pieces hand = List.fold (fun acc (c, n) -> MultiSet.add c n acc) hand pieces
     let getNextPlayerTurn st =
         match State.playerTurn st with
@@ -157,7 +161,7 @@ module Scrabble =
         let rec aux (st : State.state) =
             match State.playerNumber st = State.playerTurn st with
             | true ->
-                match State.board st (0, 0) && List.isEmpty (State.playedLetters st) with
+                match State.board st (0, 0) && Map.isEmpty (State.playedLetters st) with
                 | true ->
                     let cs = 
                         State.hand st |>
