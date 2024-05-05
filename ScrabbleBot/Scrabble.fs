@@ -13,6 +13,7 @@ module Print =
 module State =
     type state = {
         board         : coord -> bool
+        center        : coord
         dict          : Dictionary.Dict
         numPlayers    : uint32
         playerNumber  : uint32
@@ -21,9 +22,10 @@ module State =
         playedLetters : Map<coord, (uint32 * (char * int))>
     }
 
-    let mkInitialState b d np pn pt h pl = {board = b; dict = d; numPlayers = np; playerNumber = pn; playerTurn = pt; hand = h; playedLetters = pl}
-    let mkState st np pn pt h pl = {board = st.board; dict = st.dict; numPlayers = np; playerNumber = pn; playerTurn = pt; hand = h; playedLetters = pl}
+    let mkInitialState b c d np pn pt h pl = {board = b; center = c; dict = d; numPlayers = np; playerNumber = pn; playerTurn = pt; hand = h; playedLetters = pl}
+    let mkState st np pn pt h pl = {board = st.board; center = st.center; dict = st.dict; numPlayers = np; playerNumber = pn; playerTurn = pt; hand = h; playedLetters = pl}
     let board st = st.board
+    let center st = st.center
     let dict st = st.dict
     let numPlayers st = st.numPlayers
     let playerNumber st = st.playerNumber
@@ -281,7 +283,7 @@ module Scrabble =
         let rec aux (st : State.state) =
             match State.playerNumber st = State.playerTurn st with
             | true ->
-                match State.board st (0, 0) && Map.isEmpty (State.playedLetters st) with
+                match State.board st (State.center st) && Map.isEmpty (State.playedLetters st) with
                 | true ->
                     let words = getWords (State.dict st) (getTiles st tiles)
                     let bestWord = 
@@ -291,9 +293,11 @@ module Scrabble =
                             | false -> acc
                         ) List.empty words
 
+                    let (x, y) = State.center st
+
                     match List.length bestWord with
                     | 0 -> send cstream (SMChange (MultiSet.toList (State.hand st)))
-                    | _ -> send cstream (SMPlay (List.mapi (fun i elm -> ((i, 0), elm)) bestWord))
+                    | _ -> send cstream (SMPlay (List.mapi (fun i elm -> ((x + i, y), elm)) bestWord))
                 
                 | false -> 
                     let moves = getMove st tiles
@@ -366,8 +370,7 @@ module Scrabble =
 
         let dict = dictf false
         let boardFun = Parser.mkBoardFun boardP
-                  
         let handSet = List.fold (fun acc (x, k) -> MultiSet.add x k acc) MultiSet.empty hand
         let playedLetters = Map.empty
 
-        fun () -> playGame cstream tiles (State.mkInitialState boardFun dict numPlayers playerNumber playerTurn handSet playedLetters)
+        fun () -> playGame cstream tiles (State.mkInitialState boardFun boardP.center dict numPlayers playerNumber playerTurn handSet playedLetters)
