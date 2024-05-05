@@ -90,17 +90,10 @@ module Scrabble =
             ) Set.empty lst
         aux List.empty dict lst
 
-    (*
-        let result = getWordContinuations (State.dict st) [(1,('E',1));(1,('L',1));(1,('R',1));(1,('S',1));] [(1,('T',1));(1,('O',1));(1,('W',1));];
-        for word in result do
-            forcePrint " :"
-            for char in word do
-                forcePrint (string (fst (snd char)))
-    *)
-    let getWordContinuations dict lst word =
+    let getContinuations dict lst word =
         getWords (
             List.fold (fun acc elm ->
-                match Dictionary.step (fst (snd elm)) acc with
+                match Dictionary.step (fst (snd (snd elm))) acc with
                 | None -> acc
                 | Some (_, newDict) -> newDict
             ) dict word
@@ -137,23 +130,145 @@ module Scrabble =
             ) Set.empty lst
         aux List.empty dict lst
 
-    (*
-    let findPossibleWords (st : State.state) (hand : MultiSet.MultiSet<uint32>) =
-        //converts multiset<uint32> to list<char>
-        let handList = List.map (fun i -> char (uint i + 96u)) (MultiSet.toList hand)
+    let getTiles st tiles =
+        State.hand st |>
+        MultiSet.toList |>
+        List.map (fun elm -> (elm, Set.minElement (Map.find elm tiles)))
 
-        let possibleWords = Set.empty
-        if st.playedLetters.IsEmpty then
-            possibleWords = getWords st.dict handList
-        else
-            let startPos = findStartPos st (0,0) //or other square where we know something is placed, could be from playedLetters list?
-            let startWord = findStartWord st.playedLetters startPos
+    let rec getWordHorizontal pl (x, y) =
+        match Map.containsKey (x, y) pl with
+        | true -> [((x, y), Map.find (x, y) pl)] @ getWordHorizontal pl (x + 1, y)
+        | false -> List.empty
 
-            //this does not put the startwords strictly in front of the rest, needs more work
-            possibleWords = getWords st.dict (List.append startWord handList)
+    let rec getWordVertical pl (x, y) =
+        match Map.containsKey (x, y) pl with
+        | true -> [((x, y), Map.find (x, y) pl)] @ getWordVertical pl (x, y + 1)
+        | false -> List.empty
 
-            //still needs to check if chosen word is possible on the board (no overlapping, no sidewords, no nothing)
-    *)
+    let getMovesHorizontal st tiles words =
+        let aux dict lst move =
+            getContinuations dict lst move
+
+        let lst = getTiles st tiles
+        let dict = State.dict st
+
+        List.fold (fun acc elm -> 
+            let endCoord = 
+                List.fold (fun acc elm ->
+                    let coord = fst elm
+
+                    match fst coord > fst acc with
+                    | true -> coord
+                    | false -> acc
+                ) (-1000, -1000) elm
+            
+            acc @ [(endCoord, aux dict lst elm)]
+        ) List.empty words   
+
+    let getMovesVertical st tiles words =
+        let aux dict lst move =
+            getContinuations dict lst move
+
+        let lst = getTiles st tiles
+        let dict = State.dict st
+
+        List.fold (fun acc elm -> 
+            let endCoord = 
+                List.fold (fun acc elm ->
+                    let coord = fst elm
+
+                    match snd coord > snd acc with
+                    | true -> coord
+                    | false -> acc
+                ) (-1000, -1000) elm
+            
+            acc @ [(endCoord, aux dict lst elm)]
+        ) List.empty words 
+
+    let pruneHorizontalMoves st pl moves =
+            List.fold (fun acc elm ->             
+                let rec aux v (x, y) =
+                    match Map.containsKey (x + 1, y) pl || Map.containsKey (x, y + 1) pl || Map.containsKey (x, y - 1) pl || not (State.board st (x, y)) || v > 7 with
+                    | true -> v
+                    | false -> aux (v + 1) (x + 1, y)
+
+                let maxLength = aux 0 (fst (fst elm) + 1, snd (fst elm))
+
+                acc @ 
+                    [(fst elm, Set.fold (fun acc elm -> 
+                        match List.length elm > maxLength with
+                        | true -> acc
+                        | false -> Set.add elm acc
+                    ) Set.empty (snd elm))]
+            ) List.empty moves
+
+    let pruneVerticalMoves st pl moves =
+        List.fold (fun acc elm ->             
+            let rec aux v (x, y) =
+                match Map.containsKey (x, y + 1) pl || Map.containsKey (x + 1, y) pl || Map.containsKey (x - 1, y) pl || not (State.board st (x, y)) || v > 7 with
+                | true -> v
+                | false -> aux (v + 1) (x, y + 1)
+
+            let maxLength = aux 0 (fst (fst elm), snd (fst elm) + 1)
+
+            acc @ 
+                [(fst elm, Set.fold (fun acc elm -> 
+                    match List.length elm > maxLength with
+                    | true -> acc
+                    | false -> Set.add elm acc
+                ) Set.empty (snd elm))]
+        ) List.empty moves
+
+    let getMove st tiles =
+        let pl = State.playedLetters st
+
+        let horizontalWords = 
+            Map.fold (fun acc (x, y) _ -> 
+                match Map.containsKey (x - 1, y) pl with
+                | true -> acc
+                | false -> acc @ [getWordHorizontal pl (x, y)]
+            ) List.empty pl
+
+        let horizontalMoves = getMovesHorizontal st tiles horizontalWords
+        let prunedHorizontalMoves = pruneHorizontalMoves st pl horizontalMoves
+        let coordedHorizontalMoves = 
+            List.map (fun elm -> 
+                let (x, y) = fst elm
+
+                Set.map (fun elm -> 
+                    (List.mapi (fun i elm -> ((x + i + 1, y), elm)) elm)
+                ) (snd elm)
+            ) prunedHorizontalMoves
+
+        let horizontal = 
+            List.fold (fun acc elm -> 
+                Set.union elm acc
+            ) Set.empty coordedHorizontalMoves
+
+        let verticalWords = 
+            Map.fold (fun acc (x, y) _ -> 
+                match Map.containsKey (x, y - 1) pl with
+                | true -> acc
+                | false -> acc @ [getWordVertical pl (x, y)]
+            ) List.empty pl
+
+        let verticalMoves = getMovesVertical st tiles verticalWords
+        let prunedVerticalMoves = pruneVerticalMoves st pl verticalMoves
+        let coordedVerticalMoves = 
+            List.map (fun elm -> 
+                let (x, y) = fst elm
+
+                Set.map (fun elm -> 
+                    (List.mapi (fun i elm -> ((x, y + i + 1), elm)) elm)
+                ) (snd elm)
+            ) prunedVerticalMoves
+
+        let vertical =
+            List.fold (fun acc elm -> 
+                Set.union elm acc
+            ) Set.empty coordedVerticalMoves
+
+        Set.union vertical horizontal
 
     let getNewPlayedLetters st ms = List.fold (fun acc (coord, tile) -> Map.add coord tile acc) (State.playedLetters st) ms
     let addPieces pieces hand = List.fold (fun acc (c, n) -> MultiSet.add c n acc) hand pieces
@@ -168,13 +283,7 @@ module Scrabble =
             | true ->
                 match State.board st (0, 0) && Map.isEmpty (State.playedLetters st) with
                 | true ->
-                    let cs = 
-                        State.hand st |>
-                        MultiSet.toList |>
-                        List.map (fun elm -> (elm, Set.minElement (Map.find elm tiles)))
-
-                    let words = getWords (State.dict st) cs
-                    
+                    let words = getWords (State.dict st) (getTiles st tiles)
                     let bestWord = 
                         Set.fold (fun acc elm -> 
                             match List.length acc < List.length elm with
@@ -186,26 +295,38 @@ module Scrabble =
                     | 0 -> send cstream (SMChange (MultiSet.toList (State.hand st)))
                     | _ -> send cstream (SMPlay (List.mapi (fun i elm -> ((i, 0), elm)) bestWord))
                 
-                // Change the "| false -> send cstream SMPass", with code that calculates a move when the board is not empty.
-                | false -> send cstream SMPass
+                | false -> 
+                    let moves = getMove st tiles
+
+                    let bestMove = 
+                        Set.fold (fun acc elm -> 
+                            match List.length acc < List.length elm with
+                            | true -> elm
+                            | false -> acc
+                        ) List.empty moves
+
+                    match List.length bestMove with
+                    | 0 -> send cstream SMPass
+                    | _ -> send cstream (SMPlay bestMove)
             | false -> ()
 
             match recv cstream with
             | RCM (CMPlaySuccess(ms, _, newPieces)) ->
-                let newHand = List.fold (fun acc elm -> MultiSet.removeSingle (fst (snd elm)) acc) (State.hand st) ms |> addPieces newPieces
                 let newPlayerTurn = getNextPlayerTurn st
                 let newPlayedLetters =  getNewPlayedLetters st ms
+                let newHand = List.fold (fun acc elm -> MultiSet.removeSingle (fst (snd elm)) acc) (State.hand st) ms |> addPieces newPieces
                 aux (State.mkState st (State.numPlayers st) (State.playerNumber st) newPlayerTurn newHand newPlayedLetters)
             | RCM (CMPlayed (_, ms, _)) ->
                 let newPlayerTurn = getNextPlayerTurn st
                 let newPlayedLetters = getNewPlayedLetters st ms
                 aux (State.mkState st (State.numPlayers st) (State.playerNumber st) newPlayerTurn (State.hand st) newPlayedLetters)
             | RCM (CMChangeSuccess newPieces) ->
-                let newHand = addPieces newPieces MultiSet.empty
                 let newPlayerTurn = getNextPlayerTurn st
+                let newHand = addPieces newPieces MultiSet.empty
                 aux (State.mkState st (State.numPlayers st) (State.playerNumber st) newPlayerTurn newHand (State.playedLetters st)) 
             | RCM (CMForfeit _) ->
                 let newNumPlayers = State.numPlayers st - 1u
+                
                 let newPlayerNumber =
                     match State.playerNumber st with
                     | n when n > State.playerTurn st -> n - 1u
