@@ -357,7 +357,7 @@ module Scrabble =
                 | true ->
                     let words = getWords (State.dict st) (getTiles st tiles)
                     let wordsLst = [(State.center st, words)]
-                    let pl = st.playedLetters
+                    let pl = State.playedLetters st
                     let eastStartMove = pruneEastMoves st pl wordsLst true
                     let coordedEastMoves = 
                         List.map (fun elm -> 
@@ -372,7 +372,6 @@ module Scrabble =
                         List.fold (fun acc elm -> 
                         Set.union elm acc
                         ) Set.empty coordedEastMoves
-
 
                     let westStartMove = pruneWestMoves st pl wordsLst true
                     let coordedWestMoves = 
@@ -390,8 +389,6 @@ module Scrabble =
                         Set.union elm acc
                         ) Set.empty coordedWestMoves
 
-
-
                     let southStartMove = pruneSouthMoves st pl wordsLst true
                     let coordedSouthMoves = 
                         List.map (fun elm -> 
@@ -406,7 +403,6 @@ module Scrabble =
                         List.fold (fun acc elm -> 
                         Set.union elm acc
                         ) Set.empty coordedSouthMoves
-
 
                     let northStartMove = pruneNorthMoves st pl wordsLst true
                     let coordedNorthMoves = 
@@ -423,8 +419,6 @@ module Scrabble =
                         List.fold (fun acc elm -> 
                         Set.union elm acc
                         ) Set.empty coordedNorthMoves
-
-
 
                     let bestMove =
                         Set.fold (fun acc elm -> 
