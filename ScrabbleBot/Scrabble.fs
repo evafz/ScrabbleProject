@@ -59,13 +59,14 @@ module Scrabble =
         aux List.empty dict lst
 
     let getContinuations dict lst word =
-        getWords (
+        let x = 
             List.fold (fun acc elm ->
-                match Dictionary.step (fst (snd (snd elm))) acc with
+                match Dictionary.step (fst (snd (snd elm))) (snd acc) with
                 | None -> acc
-                | Some (_, newDict) -> newDict
-            ) dict word
-        ) lst
+                | Some (b, newDict) -> (b, newDict)
+            ) (false, dict) word
+        
+        (fst x, getWords (snd x) lst)
 
     let getTiles st tiles =
         State.hand st |>
@@ -82,14 +83,37 @@ module Scrabble =
         | true -> [((x, y), Map.find (x, y) pl)] @ getWordVertical pl (x, y + 1)
         | false -> List.empty
 
-    let getMovesHorizontal st tiles words =
-        let aux dict lst move =
-            getContinuations dict lst move
+    let getWordsToo dict (lst : list<uint32 * (char * 'a)>) (move : list<(int * int) * ('b * (char * 'c))>) =
+        let rec aux word dict lst =
+            List.fold (fun acc elm -> 
+                match Dictionary.step (fst (snd elm)) dict with
+                | None -> acc
+                | Some (_, newDict) ->
+                    let startWord = word @ [elm]
+                    let newLst = removeElement elm lst
+                    
+                    let endWord = getContinuations newDict newLst move
 
+                    match endWord with
+                    | (false, x) when Set.isEmpty x -> Set.union (aux startWord newDict newLst) acc
+                    | (_, endWord) -> Set.union (aux startWord newDict newLst) acc |> Set.add (startWord, endWord)
+            ) Set.empty lst
+        aux List.empty dict lst
+
+    let getMovesHorizontal st tiles words =
         let lst = getTiles st tiles
         let dict = State.dict st
 
         List.fold (fun acc elm -> 
+            let startCoord = 
+                List.fold (fun acc elm ->
+                    let coord = fst elm
+
+                    match fst coord < fst acc with
+                    | true -> coord
+                    | false -> acc
+                ) (1000, 1000) elm
+            
             let endCoord = 
                 List.fold (fun acc elm ->
                     let coord = fst elm
@@ -99,13 +123,10 @@ module Scrabble =
                     | false -> acc
                 ) (-1000, -1000) elm
             
-            acc @ [(endCoord, aux dict lst elm)]
+            acc @ [(startCoord, (endCoord, getWordsToo dict lst elm))]
         ) List.empty words   
 
     let getMovesVertical st tiles words =
-        let aux dict lst move =
-            getContinuations dict lst move
-
         let lst = getTiles st tiles
         let dict = State.dict st
 
@@ -119,28 +140,57 @@ module Scrabble =
                     | false -> acc
                 ) (-1000, -1000) elm
             
-            acc @ [(endCoord, aux dict lst elm)]
+            acc @ [(endCoord, getWordsToo dict lst elm)]
         ) List.empty words 
 
+    let pruneHorizontalMovesToo st pl (moves : list<(int * int) * ((int * int) * Set<list<uint32 * (char * 'a)> * Set<list<uint32 * (char * 'a)>>>)>) =
+        List.fold (fun acc elm ->             
+            let (x1, y1) = fst elm
+            let (x2, y2) = fst (snd elm)
+    
+            let rec before v (x, y) =
+                match Map.containsKey (x - 1, y) pl || Map.containsKey (x, y + 1) pl || Map.containsKey (x, y - 1) pl || not (State.board st (x, y)) || v > 7 with
+                | true -> v
+                | false -> before (v + 1) (x - 1, y)
+            
+            let rec after v (x, y) =
+                match Map.containsKey (x + 1, y) pl || Map.containsKey (x, y + 1) pl || Map.containsKey (x, y - 1) pl || not (State.board st (x, y)) || v > 7 with
+                | true -> v
+                | false -> after (v + 1) (x + 1, y)
 
-    let pruneHorizontalMoves st pl moves start=
-            List.fold (fun acc elm ->             
-                let rec aux v (x, y) =
-                    match Map.containsKey (x + 1, y) pl || Map.containsKey (x, y + 1) pl || Map.containsKey (x, y - 1) pl || not (State.board st (x, y)) || v > 7 with
-                    | true -> v
-                    | false -> aux (v + 1) (x + 1, y)
-                let maxLength =
-                    match start with
-                    | true -> aux 0 (fst (fst elm), snd (fst elm))
-                    | false -> aux 0 (fst (fst elm) + 1, snd (fst elm))
+            let maxBeforeLength = before 0 (x1 - 1, y1)
+            let maxAfterLength = after 0 (x2 + 1, y2)
 
-                acc @ 
-                    [(fst elm, Set.fold (fun acc elm -> 
-                        match List.length elm > maxLength with
-                        | true -> acc
-                        | false -> Set.add elm acc
-                    ) Set.empty (snd elm))]
-            ) List.empty moves
+            acc @ 
+                [((x1, y1), ((x2, y2), Set.fold (fun acc elm -> 
+                    match List.length (fst elm) > maxBeforeLength with
+                    | true -> acc
+                    | false -> 
+                        Set.add ((fst elm),
+                            Set.fold (fun acc elm -> 
+                                match List.length elm > maxAfterLength with
+                                | true -> acc
+                                | false -> Set.add elm acc
+                            ) Set.empty (snd elm)
+                        ) acc
+                ) Set.empty (snd (snd elm))))]
+        ) List.empty moves
+
+    let pruneHorizontalMoves st pl moves =
+        List.fold (fun acc elm ->             
+            let rec aux v (x, y) =
+                match Map.containsKey (x + 1, y) pl || Map.containsKey (x, y + 1) pl || Map.containsKey (x, y - 1) pl || not (State.board st (x, y)) || v > 7 with
+                | true -> v
+                | false -> aux (v + 1) (x + 1, y)
+            let maxLength = aux 0 (fst (fst elm), snd (fst elm))
+
+            acc @ 
+                [(fst elm, Set.fold (fun acc elm -> 
+                    match List.length elm > maxLength with
+                    | true -> acc
+                    | false -> Set.add elm acc
+                ) Set.empty (snd elm))]
+        ) List.empty moves
 
     let pruneVerticalMoves st pl moves start =
         List.fold (fun acc elm ->             
@@ -173,14 +223,20 @@ module Scrabble =
             ) List.empty pl
 
         let horizontalMoves = getMovesHorizontal st tiles horizontalWords
-        let prunedHorizontalMoves = pruneHorizontalMoves st pl horizontalMoves false
+        let prunedHorizontalMoves = pruneHorizontalMovesToo st pl horizontalMoves
         let coordedHorizontalMoves = 
             List.map (fun elm -> 
-                let (x, y) = fst elm
+                let (x1, y1) = fst elm
+                let (x2, y2) = fst (snd elm)
+                
+                Set.map (fun elm ->
+                    let beforeLst = List.rev (fst elm)
+                    let newBeforeLst = (List.mapi (fun i elm -> ((x1 - i - 1, y1), elm)) beforeLst)
 
-                Set.map (fun elm -> 
-                    (List.mapi (fun i elm -> ((x + i + 1, y), elm)) elm)
-                ) (snd elm)
+                    (newBeforeLst, Set.map (fun elm -> 
+                        List.mapi (fun i elm -> ((x2 + i + 1, y2), elm)) elm
+                    ) (snd elm))
+                ) (snd (snd elm))
             ) prunedHorizontalMoves
 
         let horizontal = 
@@ -188,6 +244,18 @@ module Scrabble =
                 Set.union elm acc
             ) Set.empty coordedHorizontalMoves
 
+        let newHorizontal =
+            Set.map (fun elm -> 
+                let lst = 
+                    Set.fold (fun acc elm -> 
+                        match List.length acc < List.length elm with
+                        | true -> elm
+                        | false -> acc
+                    ) List.empty (snd elm)
+
+                List.append (fst elm) lst    
+            ) horizontal
+        (*
         let verticalWords = 
             Map.fold (fun acc (x, y) _ -> 
                 match Map.containsKey (x, y - 1) pl with
@@ -212,6 +280,8 @@ module Scrabble =
             ) Set.empty coordedVerticalMoves
 
         Set.union vertical horizontal
+        *)
+        newHorizontal
 
     let getNewPlayedLetters st ms = List.fold (fun acc (coord, tile) -> Map.add coord tile acc) (State.playedLetters st) ms
     let addPieces pieces hand = List.fold (fun acc (c, n) -> MultiSet.add c n acc) hand pieces
@@ -229,7 +299,7 @@ module Scrabble =
                     let words = getWords (State.dict st) (getTiles st tiles)
                     let wordsLst = [(State.center st, words)]
                     let pl = st.playedLetters
-                    let horStartMove = pruneHorizontalMoves st pl wordsLst true
+                    let horStartMove = pruneHorizontalMoves st pl wordsLst
                     let coordedHorizontalMoves = 
                         List.map (fun elm -> 
                             let (x, y) = fst elm
