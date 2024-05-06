@@ -142,14 +142,17 @@ module Scrabble =
                     ) Set.empty (snd elm))]
             ) List.empty moves
 
-    let pruneVerticalMoves st pl moves =
+    let pruneVerticalMoves st pl moves start =
         List.fold (fun acc elm ->             
             let rec aux v (x, y) =
                 match Map.containsKey (x, y + 1) pl || Map.containsKey (x + 1, y) pl || Map.containsKey (x - 1, y) pl || not (State.board st (x, y)) || v > 7 with
                 | true -> v
                 | false -> aux (v + 1) (x, y + 1)
 
-            let maxLength = aux 0 (fst (fst elm), snd (fst elm) + 1)
+            let maxLength =
+                    match start with
+                    | true -> aux 0 (fst (fst elm), snd (fst elm))
+                    | false -> aux 0 (fst (fst elm), snd (fst elm) + 1)
 
             acc @ 
                 [(fst elm, Set.fold (fun acc elm -> 
@@ -193,7 +196,7 @@ module Scrabble =
             ) List.empty pl
 
         let verticalMoves = getMovesVertical st tiles verticalWords
-        let prunedVerticalMoves = pruneVerticalMoves st pl verticalMoves
+        let prunedVerticalMoves = pruneVerticalMoves st pl verticalMoves false
         let coordedVerticalMoves = 
             List.map (fun elm -> 
                 let (x, y) = fst elm
@@ -241,18 +244,31 @@ module Scrabble =
                         Set.union elm acc
                         ) Set.empty coordedHorizontalMoves
 
-                    let bestWord = 
+                    let verStartMove = pruneVerticalMoves st pl wordsLst true
+                    let coordedVerticalMoves = 
+                        List.map (fun elm -> 
+                            let (x, y) = fst elm
+
+                            Set.map (fun elm -> 
+                                (List.mapi (fun i elm -> ((x, y + i), elm)) elm)
+                            ) (snd elm)
+                        ) verStartMove
+
+                    let vertical = 
+                        List.fold (fun acc elm -> 
+                        Set.union elm acc
+                        ) Set.empty coordedVerticalMoves
+
+                    let bestMove =
                         Set.fold (fun acc elm -> 
                             match List.length acc < List.length elm with
                             | true -> elm
                             | false -> acc
-                        ) List.empty horizontal
+                        ) List.empty (Set.union horizontal vertical)
 
-                    let (x, y) = State.center st
-
-                    match List.length bestWord with
+                    match List.length bestMove with
                     | 0 -> send cstream (SMChange (MultiSet.toList (State.hand st)))
-                    | _ -> send cstream (SMPlay bestWord)
+                    | _ -> send cstream (SMPlay bestMove)
                 
                 | false -> 
                     let moves = getMove st tiles
