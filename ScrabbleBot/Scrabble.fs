@@ -36,40 +36,6 @@ module State =
 module Scrabble =
     open System.Threading
 
-    // method for finding the start of a word (first blank square)
-    // let coordIsOccupied (playedLetters : List<coord * (uint32 * (char * int))>) (coord : coord) = 
-    //     List.exists (fun (c, _) -> c = coord) playedLetters
-
-    // let rec findStartPos (st : State.state) (currentCoords : coord) = 
-    //     match coordIsOccupied st.playedLetters currentCoords with 
-    //         | true -> findStartPos st (fst currentCoords + 1, snd currentCoords)
-    //         | false -> currentCoords
-
-    (*
-    let findRestOfWord (startPos : coord ) (playedLetters : Map<coord, (uint32 * (char * int))>) =
-        //let listPlayedLetters = Map.fold (fun acc elm -> List. elm acc) List.Empty playedLetters
-        let rec aux word startPos (playedLetters :  Map<coord, (uint32 * (char * int))>) = 
-            Map.fold 
-            match playedLetters with
-                | ((x,y), (_, (letter, _))) -> if x = (fst startPos) + 1 then aux (letter :: word) (x, y) playedLetters
-
-        let word = List.Empty
-        aux word startPos playedLetters
-    *)
-
-    // Find start word
-    (*
-    let rec findWordHorizontal (playedLetters : Map<coord, (uint32 * (char * int))>) =
-        match playedLetters with
-            |((x,y), (_, (letter, _))) -> 
-                    if !(Map.containsKey (x-1,y) playedLetters) then
-                        match 
-                // if Map. ((x,y), (1u, ('T', 2))) playedLetters then
-                //     letter :: findWordHorizontal rest (x + 1, y)
-                // else
-                //     findWordHorizontal rest startPos
-    *)
-
     // Remove first occurence of element in list
     let rec removeElement itm lst =
         match lst with
@@ -100,37 +66,6 @@ module Scrabble =
                 | Some (_, newDict) -> newDict
             ) dict word
         ) lst
-
-    // Helper function to check that a word actually starts with a specific sequence of letters (another word)
-    let rec startsWithLetters letters word =
-        let rec startsWithLettersHelper letters word = 
-            match letters, word with
-            | [], _ -> true
-            | _, [] -> false
-            | (_, (x, _))::xs, (_, (y, _))::ys -> 
-                match x = y with 
-                | true -> startsWithLettersHelper xs ys
-                | false -> false
-        startsWithLettersHelper letters word
-
-    // getWords but with start letters/already placed word
-    let getWordsWithStartLetters dict lst startLetters =
-        let rec aux word dict lst =
-            List.fold (fun acc elm -> 
-                match Dictionary.step (fst (snd elm)) dict with
-                | None -> acc
-                | Some (b, newDict) ->
-                    let newWord = word @ [elm]
-                    let newLst = removeElement elm lst
-                    match b with
-                    | false -> Set.union (aux newWord newDict newLst) acc
-                    | true -> 
-                        let words = aux newWord newDict newLst
-                        match startsWithLetters startLetters newWord with
-                        | true -> Set.union (Set.add newWord words) acc
-                        | false -> Set.union words acc      
-            ) Set.empty lst
-        aux List.empty dict lst
 
     let getTiles st tiles =
         State.hand st |>
