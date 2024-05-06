@@ -373,6 +373,25 @@ module Scrabble =
                         Set.union elm acc
                         ) Set.empty coordedEastMoves
 
+
+                    let westStartMove = pruneWestMoves st pl wordsLst true
+                    let coordedWestMoves = 
+                        List.map (fun elm -> 
+                            let (x, y) = fst elm
+
+                            Set.map (fun elm -> 
+                                let rev = List.rev elm
+                                (List.mapi (fun i elm -> ((x - i, y), elm)) rev)
+                            ) (snd elm)
+                        ) westStartMove
+
+                    let west = 
+                        List.fold (fun acc elm -> 
+                        Set.union elm acc
+                        ) Set.empty coordedWestMoves
+
+
+
                     let southStartMove = pruneSouthMoves st pl wordsLst true
                     let coordedSouthMoves = 
                         List.map (fun elm -> 
@@ -388,12 +407,31 @@ module Scrabble =
                         Set.union elm acc
                         ) Set.empty coordedSouthMoves
 
+
+                    let northStartMove = pruneNorthMoves st pl wordsLst true
+                    let coordedNorthMoves = 
+                        List.map (fun elm -> 
+                            let (x, y) = fst elm
+
+                            Set.map (fun elm -> 
+                                let rev = List.rev elm
+                                (List.mapi (fun i elm -> ((x, y - i), elm)) rev)
+                            ) (snd elm)
+                        ) northStartMove
+
+                    let north = 
+                        List.fold (fun acc elm -> 
+                        Set.union elm acc
+                        ) Set.empty coordedNorthMoves
+
+
+
                     let bestMove =
                         Set.fold (fun acc elm -> 
                             match List.length acc < List.length elm with
                             | true -> elm
                             | false -> acc
-                        ) List.empty (Set.union east south)
+                        ) List.empty (Set.unionMany [east; south; north; west])
 
                     match List.length bestMove with
                     | 0 -> send cstream (SMChange (MultiSet.toList (State.hand st)))
@@ -447,7 +485,7 @@ module Scrabble =
             | RCM _ ->
                 let newPlayerTurn = getNextPlayerTurn st
                 aux (State.mkState st (State.numPlayers st) (State.playerNumber st) newPlayerTurn (State.hand st) (State.playedLetters st))
-            | RGPE _ -> ()
+            | RGPE _ -> aux st
         aux st
 
     let startGame
