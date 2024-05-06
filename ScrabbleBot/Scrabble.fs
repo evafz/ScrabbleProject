@@ -122,14 +122,17 @@ module Scrabble =
             acc @ [(endCoord, aux dict lst elm)]
         ) List.empty words 
 
-    let pruneHorizontalMoves st pl moves =
+
+    let pruneHorizontalMoves st pl moves start=
             List.fold (fun acc elm ->             
                 let rec aux v (x, y) =
                     match Map.containsKey (x + 1, y) pl || Map.containsKey (x, y + 1) pl || Map.containsKey (x, y - 1) pl || not (State.board st (x, y)) || v > 7 with
                     | true -> v
                     | false -> aux (v + 1) (x + 1, y)
-
-                let maxLength = aux 0 (fst (fst elm) + 1, snd (fst elm))
+                let maxLength =
+                    match start with
+                    | true -> aux 0 (fst (fst elm), snd (fst elm))
+                    | false -> aux 0 (fst (fst elm) + 1, snd (fst elm))
 
                 acc @ 
                     [(fst elm, Set.fold (fun acc elm -> 
@@ -167,7 +170,7 @@ module Scrabble =
             ) List.empty pl
 
         let horizontalMoves = getMovesHorizontal st tiles horizontalWords
-        let prunedHorizontalMoves = pruneHorizontalMoves st pl horizontalMoves
+        let prunedHorizontalMoves = pruneHorizontalMoves st pl horizontalMoves false
         let coordedHorizontalMoves = 
             List.map (fun elm -> 
                 let (x, y) = fst elm
@@ -221,18 +224,35 @@ module Scrabble =
                 match State.board st (State.center st) && Map.isEmpty (State.playedLetters st) with
                 | true ->
                     let words = getWords (State.dict st) (getTiles st tiles)
+                    let wordsLst = [(State.center st, words)]
+                    let pl = st.playedLetters
+                    let horStartMove = pruneHorizontalMoves st pl wordsLst true
+                    let coordedHorizontalMoves = 
+                        List.map (fun elm -> 
+                            let (x, y) = fst elm
+
+                            Set.map (fun elm -> 
+                                (List.mapi (fun i elm -> ((x + i, y), elm)) elm)
+                            ) (snd elm)
+                        ) horStartMove
+
+                    let horizontal = 
+                        List.fold (fun acc elm -> 
+                        Set.union elm acc
+                        ) Set.empty coordedHorizontalMoves
+
                     let bestWord = 
                         Set.fold (fun acc elm -> 
                             match List.length acc < List.length elm with
                             | true -> elm
                             | false -> acc
-                        ) List.empty words
+                        ) List.empty horizontal
 
                     let (x, y) = State.center st
 
                     match List.length bestWord with
                     | 0 -> send cstream (SMChange (MultiSet.toList (State.hand st)))
-                    | _ -> send cstream (SMPlay (List.mapi (fun i elm -> ((x + i, y), elm)) bestWord))
+                    | _ -> send cstream (SMPlay bestWord)
                 
                 | false -> 
                     let moves = getMove st tiles
