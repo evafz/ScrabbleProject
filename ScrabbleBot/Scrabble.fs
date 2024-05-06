@@ -1,4 +1,4 @@
-﻿namespace FuncPro
+﻿namespace FunctionalBot
 
 open ScrabbleUtil
 open ScrabbleUtil.ServerCommunication

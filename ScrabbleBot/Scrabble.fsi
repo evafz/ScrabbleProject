@@ -1,4 +1,4 @@
-﻿namespace FuncPro
+﻿namespace FunctionalBot
 
 module Scrabble =
     open ScrabbleUtil
