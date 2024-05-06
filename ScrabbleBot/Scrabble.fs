@@ -34,16 +34,12 @@ module State =
     let playedLetters st = st.playedLetters
 
 module Scrabble =
-    open System.Threading
-
-    // Remove first occurence of element in list
     let rec removeElement itm lst =
         match lst with
         | x::lst when x = itm -> lst
         | x::lst -> x::removeElement itm lst
         | _ -> []
 
-    // Find all legal words by giving a list of letters
     let getWords dict lst =
         let rec aux word dict lst =
             List.fold (fun acc elm -> 
@@ -120,8 +116,7 @@ module Scrabble =
                 ) (-1000, -1000) elm
             
             acc @ [(endCoord, aux dict lst elm)]
-        ) List.empty words 
-
+        ) List.empty words
 
     let pruneHorizontalMoves st pl moves start=
             List.fold (fun acc elm ->             
